@@ -2,17 +2,21 @@ import { useState, useEffect } from 'react'
 import ResumeForm from './components/ResumeForm'
 import ReferenceInput from './components/ReferenceInput'
 import TemplateReview from './components/TemplateReview'
+import NewResumeInput from './components/NewResumeInput'
+import ParsedContentReview from './components/ParsedContentReview'
 import { generatePDF } from './utils/pdfGenerator'
 import { parsePDF } from './utils/pdfParser'
+import { parseResumeContent } from './utils/contentParser'
 import { extractStylingSpecs, createReferenceTemplate } from './utils/stylingExtractor'
 import { loadTemplate } from './utils/templateStorage'
 import './App.css'
 
 function App() {
-  // App view state: 'landing' | 'reference-setup' | 'reference-review' | 'formatting'
+  // App view state: 'landing' | 'reference-setup' | 'reference-review' | 'formatting' | 'parsed-content-review' | 'formatted-preview'
   const [currentView, setCurrentView] = useState('landing')
   const [referenceTemplate, setReferenceTemplate] = useState(null)
   const [analyzedTemplate, setAnalyzedTemplate] = useState(null)
+  const [parsedContent, setParsedContent] = useState(null)
   
   const [resumeData, setResumeData] = useState({
     name: '',
@@ -45,8 +49,13 @@ function App() {
   }
 
   const handleAnalyzeReference = async (pdfFile, onProgress, openAIApiKey) => {
+    if (!openAIApiKey || !openAIApiKey.trim()) {
+      alert('OpenAI API key is required. Please configure it in the settings above.')
+      return
+    }
+
     try {
-      // Parse the PDF file with progress callback
+      // Parse the PDF file with progress callback (OpenAI is now required)
       const parsed = await parsePDF(pdfFile, onProgress, openAIApiKey)
       if (!parsed.success || parsed.error) {
         alert(`Error parsing PDF: ${parsed.error || 'Unknown error'}`)
@@ -110,10 +119,37 @@ function App() {
   const handleStartFormatting = () => {
     if (referenceTemplate) {
       setCurrentView('formatting')
+      setParsedContent(null) // Reset parsed content
     } else {
       alert('Please set up a reference resume first')
       setCurrentView('reference-setup')
     }
+  }
+
+  const handleParseContent = async (resumeText) => {
+    try {
+      const parsed = parseResumeContent(resumeText)
+      if (parsed.error) {
+        alert(`Error parsing resume: ${parsed.error}`)
+        return
+      }
+      setParsedContent(parsed)
+      setCurrentView('parsed-content-review')
+    } catch (error) {
+      console.error('Error parsing resume content:', error)
+      alert('Error parsing resume content. Please check the console.')
+    }
+  }
+
+  const handleConfirmParsedContent = (content) => {
+    setParsedContent(content)
+    // Next: Apply styling and show preview (Phase 3)
+    setCurrentView('formatted-preview')
+    // TODO: Apply reference template styling to content
+  }
+
+  const handleEditParsedContent = () => {
+    setCurrentView('formatting')
   }
 
   // Landing page
@@ -206,51 +242,90 @@ function App() {
     )
   }
 
-  // Formatting view (original functionality)
-  return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Resume Formatting Tool</h1>
-        <p>Format your resume content</p>
-        {referenceTemplate && (
-          <p className="template-indicator">
-            Using reference template: {referenceTemplate.name}
-          </p>
-        )}
-      </header>
-      <main className="app-main">
-        <div className="view-controls">
-          <button 
-            className="view-button"
-            onClick={() => setCurrentView('landing')}
-          >
-            ← Back to Home
-          </button>
+  // Formatting view - New resume input
+  if (currentView === 'formatting') {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1>Resume Formatting Tool</h1>
+          <p>Format your new resume content</p>
           {referenceTemplate && (
+            <p className="template-indicator">
+              Using reference template: {referenceTemplate.name}
+            </p>
+          )}
+        </header>
+        <main className="app-main">
+          <div className="view-controls">
             <button 
               className="view-button"
-              onClick={handleStartReferenceSetup}
+              onClick={() => setCurrentView('landing')}
             >
-              Update Reference
+              ← Back to Home
             </button>
-          )}
-        </div>
-        <ResumeForm 
-          resumeData={resumeData}
-          onInputChange={handleInputChange}
-        />
-        <div className="export-section">
-          <button 
-            className="export-button"
-            onClick={handleExportPDF}
-            disabled={isGenerating || !resumeData.name}
-          >
-            {isGenerating ? 'Generating PDF...' : 'Export PDF'}
-          </button>
-        </div>
-      </main>
-    </div>
-  )
+            {referenceTemplate && (
+              <button 
+                className="view-button"
+                onClick={handleStartReferenceSetup}
+              >
+                Update Reference
+              </button>
+            )}
+          </div>
+          <NewResumeInput onParse={handleParseContent} />
+        </main>
+      </div>
+    )
+  }
+
+  // Parsed content review view
+  if (currentView === 'parsed-content-review') {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1>Resume Formatting Tool</h1>
+          <p>Review parsed content</p>
+        </header>
+        <main className="app-main">
+          <ParsedContentReview
+            parsedContent={parsedContent}
+            onConfirm={handleConfirmParsedContent}
+            onEdit={handleEditParsedContent}
+          />
+        </main>
+      </div>
+    )
+  }
+
+  // Formatted preview view (Phase 3 - will implement next)
+  if (currentView === 'formatted-preview') {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1>Resume Formatting Tool</h1>
+          <p>Preview formatted resume</p>
+        </header>
+        <main className="app-main">
+          <div className="view-controls">
+            <button 
+              className="view-button"
+              onClick={() => setCurrentView('parsed-content-review')}
+            >
+              ← Back to Edit
+            </button>
+          </div>
+          <div style={{ padding: '2rem', textAlign: 'center' }}>
+            <p>Formatted preview will be shown here (Phase 3)</p>
+            <p>Content ready: {parsedContent ? 'Yes' : 'No'}</p>
+            <p>Template ready: {referenceTemplate ? 'Yes' : 'No'}</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Fallback (should not reach here)
+  return null
 }
 
 export default App

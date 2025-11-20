@@ -54,10 +54,10 @@ const OpenAISettings = ({ onApiKeySet, currentApiKey }) => {
   return (
     <div className="openai-settings">
       <div className="settings-header">
-        <h3>OpenAI Vision API (Optional)</h3>
+        <h3>OpenAI Vision API (Required)</h3>
         <p className="settings-description">
-          Add your OpenAI API key to enable advanced AI-powered visual analysis.
-          This provides more accurate font detection, color extraction, and layout analysis.
+          OpenAI API key is required for resume analysis. The AI-powered visual analysis provides 
+          accurate font detection, color extraction, layout analysis, and granular styling specifications.
         </p>
       </div>
       

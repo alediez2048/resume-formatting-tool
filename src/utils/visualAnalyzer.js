@@ -327,19 +327,25 @@ function detectVisualElements(imageData, data, viewport) {
 }
 
 /**
- * Analyze PDF with OpenAI Vision API (optional)
+ * Analyze PDF with OpenAI Vision API (required)
  * @param {string} imageData - Base64 image data
  * @param {string} apiKey - OpenAI API key
  * @returns {Promise<Object>} AI analysis results
  */
 export async function analyzeWithOpenAI(imageData, apiKey) {
-  if (!apiKey) {
-    return { error: 'OpenAI API key required' }
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error('OpenAI API key is required')
   }
 
   try {
     // Convert base64 to format OpenAI expects
     const base64Image = imageData.split(',')[1]
+    
+    if (!base64Image) {
+      throw new Error('Invalid image data provided to OpenAI')
+    }
+    
+    console.log('Calling OpenAI Vision API with model: gpt-4o')
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -356,14 +362,44 @@ export async function analyzeWithOpenAI(imageData, apiKey) {
               {
                 type: 'text',
                 text: `Analyze this resume PDF image and extract detailed design specifications in JSON format. Include:
-- Exact font sizes for name, section titles, body text, contact info
+
+FONTS (for each element type):
+- Name: size, weight (bold/normal), style (italic/normal), family
+- Section Titles: size, weight, style, family, transform (uppercase/lowercase/capitalize/none)
+- Subtitles: size, weight, style, family
+- Company Names: size, weight, style, family
+- Role Titles: size, weight, style, family
+- Dates: size, weight, style, family
+- Body Text: size, weight, style, family, lineHeight
+- Bullet Text: size, weight, style, family
+- Contact Info: size, weight, style, family
+- Skills: size, weight, style, family
+- Education: size, weight, style, family
+
+LAYOUT:
 - Precise margins (top, bottom, left, right) in points
 - Line spacing and paragraph spacing
 - Section spacing
-- Colors used (text color, accent color, background)
-- Font families if identifiable
-- Bullet point styles
-- Any visual elements like lines, borders, dividers
+
+BULLETS:
+- Bullet character (•, -, *, etc.)
+- Indentation in points
+- Line spacing
+- Character spacing
+
+LINKS:
+- URLs found in the resume
+- Link formatting (color, underline, clickable)
+- Font styling for links
+
+TRANSFORMS:
+- Text transforms for section titles, name, company names, role titles
+
+COLORS:
+- Text color, accent color, background color
+
+VISUAL ELEMENTS:
+- Lines, borders, dividers
 - Layout structure and alignment
 
 Return a JSON object with these specifications.`
@@ -382,11 +418,37 @@ Return a JSON object with these specifications.`
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`)
+      // Handle error response
+      let errorMessage = `OpenAI API error: ${response.status} ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        if (errorData.error) {
+          errorMessage = `OpenAI API error: ${errorData.error.message || errorData.error.code || errorData.error.type || 'Unknown error'}`
+          if (errorData.error.code === 'invalid_api_key') {
+            errorMessage = 'Invalid OpenAI API key. Please check your API key and try again.'
+          } else if (errorData.error.code === 'rate_limit_exceeded') {
+            errorMessage = 'OpenAI API rate limit exceeded. Please try again in a moment.'
+          } else if (errorData.error.code === 'insufficient_quota') {
+            errorMessage = 'OpenAI API quota exceeded. Please check your account billing.'
+          } else if (errorData.error.code === 'model_not_found') {
+            errorMessage = 'OpenAI model not found. The API may have changed. Please contact support.'
+          }
+        }
+      } catch (e) {
+        // If we can't parse error response, use status text
+        console.error('Error parsing OpenAI error response:', e)
+        errorMessage = `OpenAI API error: ${response.status} ${response.statusText}`
+      }
+      
+      throw new Error(errorMessage)
     }
 
     const data = await response.json()
-    const analysisText = data.choices[0].message.content
+    const analysisText = data.choices?.[0]?.message?.content
+    
+    if (!analysisText) {
+      throw new Error('OpenAI API returned empty response')
+    }
     
     // Try to extract JSON from the response
     const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
@@ -406,10 +468,8 @@ Return a JSON object with these specifications.`
     }
   } catch (error) {
     console.error('OpenAI Vision API error:', error)
-    return {
-      success: false,
-      error: error.message
-    }
+    // Since OpenAI is required, throw the error instead of returning it
+    throw error
   }
 }
 

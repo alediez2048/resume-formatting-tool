@@ -86,20 +86,70 @@ const TemplateReview = ({ template, onConfirm, onCancel }) => {
           <h3>Font Specifications</h3>
           <div className="spec-details">
             <div className="spec-item">
-              <span className="spec-label">Name Font Size:</span>
-              <span className="spec-value">{fonts.name?.size || 'N/A'}pt</span>
+              <span className="spec-label">Name:</span>
+              <span className="spec-value">
+                {fonts.name?.size || 'N/A'}pt, {fonts.name?.weight || 'N/A'}, {fonts.name?.style || 'normal'}, {fonts.name?.family || 'N/A'}
+              </span>
             </div>
             <div className="spec-item">
-              <span className="spec-label">Section Title Size:</span>
-              <span className="spec-value">{fonts.sectionTitle?.size || 'N/A'}pt ({fonts.sectionTitle?.transform || 'N/A'})</span>
+              <span className="spec-label">Section Titles:</span>
+              <span className="spec-value">
+                {fonts.sectionTitle?.size || 'N/A'}pt, {fonts.sectionTitle?.weight || 'N/A'}, {fonts.sectionTitle?.style || 'normal'}, {fonts.sectionTitle?.transform || 'N/A'}
+              </span>
             </div>
             <div className="spec-item">
-              <span className="spec-label">Body Text Size:</span>
-              <span className="spec-value">{fonts.body?.size || 'N/A'}pt</span>
+              <span className="spec-label">Subtitles:</span>
+              <span className="spec-value">
+                {fonts.subtitle?.size || 'N/A'}pt, {fonts.subtitle?.weight || 'N/A'}, {fonts.subtitle?.style || 'normal'}
+              </span>
             </div>
             <div className="spec-item">
-              <span className="spec-label">Contact Info Size:</span>
-              <span className="spec-value">{fonts.contact?.size || 'N/A'}pt</span>
+              <span className="spec-label">Company Names:</span>
+              <span className="spec-value">
+                {fonts.companyName?.size || 'N/A'}pt, {fonts.companyName?.weight || 'N/A'}, {fonts.companyName?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Role Titles:</span>
+              <span className="spec-value">
+                {fonts.roleTitle?.size || 'N/A'}pt, {fonts.roleTitle?.weight || 'N/A'}, {fonts.roleTitle?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Dates:</span>
+              <span className="spec-value">
+                {fonts.date?.size || 'N/A'}pt, {fonts.date?.weight || 'N/A'}, {fonts.date?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Body Text:</span>
+              <span className="spec-value">
+                {fonts.body?.size || 'N/A'}pt, {fonts.body?.weight || 'N/A'}, {fonts.body?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Bullet Text:</span>
+              <span className="spec-value">
+                {fonts.bulletText?.size || 'N/A'}pt, {fonts.bulletText?.weight || 'N/A'}, {fonts.bulletText?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Contact Info:</span>
+              <span className="spec-value">
+                {fonts.contact?.size || 'N/A'}pt, {fonts.contact?.weight || 'N/A'}, {fonts.contact?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Skills:</span>
+              <span className="spec-value">
+                {fonts.skills?.size || 'N/A'}pt, {fonts.skills?.weight || 'N/A'}, {fonts.skills?.style || 'normal'}
+              </span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Education:</span>
+              <span className="spec-value">
+                {fonts.education?.size || 'N/A'}pt, {fonts.education?.weight || 'N/A'}, {fonts.education?.style || 'normal'}
+              </span>
             </div>
           </div>
         </div>
@@ -151,8 +201,74 @@ const TemplateReview = ({ template, onConfirm, onCancel }) => {
               <span className="spec-label">Indentation:</span>
               <span className="spec-value">{bullets.indentation || 'N/A'}pt</span>
             </div>
+            <div className="spec-item">
+              <span className="spec-label">Line Spacing:</span>
+              <span className="spec-value">{bullets.lineSpacing || 'N/A'}</span>
+            </div>
+            <div className="spec-item">
+              <span className="spec-label">Character Spacing:</span>
+              <span className="spec-value">{bullets.characterSpacing || 'N/A'}pt</span>
+            </div>
           </div>
         </div>
+
+        {/* Links */}
+        {specs.links && (
+          <div className="spec-section">
+            <h3>Links & URLs</h3>
+            <div className="spec-details">
+              <div className="spec-item">
+                <span className="spec-label">Links Found:</span>
+                <span className="spec-value">{specs.links.links?.length || 0}</span>
+              </div>
+              {specs.links.links && specs.links.links.length > 0 && (
+                <div className="spec-item">
+                  <span className="spec-label">URLs:</span>
+                  <span className="spec-value">
+                    {specs.links.links.map((link, idx) => (
+                      <span key={idx} style={{ display: 'block', marginTop: '0.25rem' }}>
+                        {link.url} {link.isClickable ? '(clickable)' : ''}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              )}
+              <div className="spec-item">
+                <span className="spec-label">Link Formatting:</span>
+                <span className="spec-value">
+                  Color: {specs.links.defaultFormatting?.color || 'N/A'}, 
+                  Underline: {specs.links.defaultFormatting?.underline ? 'Yes' : 'No'}, 
+                  Clickable: {specs.links.defaultFormatting?.isClickable ? 'Yes' : 'No'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Text Transforms */}
+        {specs.transforms && (
+          <div className="spec-section">
+            <h3>Text Transforms</h3>
+            <div className="spec-details">
+              <div className="spec-item">
+                <span className="spec-label">Section Titles:</span>
+                <span className="spec-value">{specs.transforms.sectionTitle || 'none'}</span>
+              </div>
+              <div className="spec-item">
+                <span className="spec-label">Name:</span>
+                <span className="spec-value">{specs.transforms.name || 'none'}</span>
+              </div>
+              <div className="spec-item">
+                <span className="spec-label">Company Names:</span>
+                <span className="spec-value">{specs.transforms.companyName || 'none'}</span>
+              </div>
+              <div className="spec-item">
+                <span className="spec-label">Role Titles:</span>
+                <span className="spec-value">{specs.transforms.roleTitle || 'none'}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Constraints */}
         <div className="spec-section">

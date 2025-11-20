@@ -157,6 +157,14 @@
   transform: none;
 }
 
+.api-key-required-note {
+  color: #d32f2f;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  text-align: center;
+  font-weight: 500;
+}
+
 .analyzing-indicator {
   display: flex;
   flex-direction: column;

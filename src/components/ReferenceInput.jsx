@@ -37,6 +37,11 @@ const ReferenceInput = ({ onAnalyze }) => {
       return
     }
 
+    if (!openAIApiKey || !openAIApiKey.trim()) {
+      setError('OpenAI API key is required. Please configure it above.')
+      return
+    }
+
     setIsAnalyzing(true)
     setError(null)
     setProgress(0)
@@ -141,10 +146,15 @@ const ReferenceInput = ({ onAnalyze }) => {
         <button
           className="analyze-button"
           onClick={handleSubmit}
-          disabled={!selectedFile || isAnalyzing}
+          disabled={!selectedFile || !openAIApiKey || isAnalyzing}
         >
           {isAnalyzing ? 'Analyzing PDF...' : 'Analyze Reference Resume'}
         </button>
+        {!openAIApiKey && (
+          <p className="api-key-required-note">
+            ⚠️ OpenAI API key is required to analyze resumes
+          </p>
+        )}
       </div>
 
       {isAnalyzing && (

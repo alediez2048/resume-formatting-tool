@@ -5,6 +5,7 @@
 
 import * as pdfjsLib from 'pdfjs-dist'
 import { analyzePDFVisual, analyzeWithOpenAI } from './visualAnalyzer'
+import { extractEnhancedStyling } from './enhancedStylingExtractor'
 
 // Set up the worker for pdfjs - use local worker file for reliability
 if (typeof window !== 'undefined') {
@@ -30,7 +31,10 @@ function withTimeout(promise, timeoutMs, errorMessage) {
  * @param {Function} onProgress - Optional progress callback (progress, stage)
  * @returns {Promise<Object>} Parsed PDF data with text and styling
  */
-export async function parsePDF(file, onProgress, openAIApiKey = null) {
+export async function parsePDF(file, onProgress, openAIApiKey) {
+  if (!openAIApiKey || !openAIApiKey.trim()) {
+    throw new Error('OpenAI API key is required')
+  }
   // Declare openAIAnalysis at function scope to ensure it's always available
   let openAIAnalysis = null
   
@@ -81,18 +85,30 @@ export async function parsePDF(file, onProgress, openAIApiKey = null) {
     // Stage 5: Processing text items
     if (onProgress) onProgress(70, 'Processing text items...')
     
-    // Extract text items with positions and styling
-    const textItems = textContent.items.map(item => ({
-      text: item.str,
-      x: item.transform[4], // X position
-      y: item.transform[5], // Y position
-      width: item.width || 0,
-      height: item.height || 0,
-      fontName: item.fontName || 'Helvetica',
-      fontSize: item.height || 11, // Approximate font size from height
-      pageWidth: viewport.width,
-      pageHeight: viewport.height
-    }))
+    // Extract text items with positions and styling (including font properties)
+    const textItems = textContent.items.map(item => {
+      const fontName = item.fontName || 'Helvetica'
+      // Extract font properties from font name
+      const isBold = fontName.toLowerCase().includes('bold') || 
+                     fontName.toLowerCase().includes('black') || 
+                     fontName.toLowerCase().includes('heavy')
+      const isItalic = fontName.toLowerCase().includes('italic') || 
+                       fontName.toLowerCase().includes('oblique')
+      
+      return {
+        text: item.str,
+        x: item.transform[4], // X position
+        y: item.transform[5], // Y position
+        width: item.width || 0,
+        height: item.height || 0,
+        fontName: fontName,
+        fontSize: item.height || 11, // Approximate font size from height
+        isBold: isBold,
+        isItalic: isItalic,
+        pageWidth: viewport.width,
+        pageHeight: viewport.height
+      }
+    })
 
     // Stage 6: Visual analysis
     if (onProgress) onProgress(75, 'Performing visual analysis...')
@@ -104,33 +120,39 @@ export async function parsePDF(file, onProgress, openAIApiKey = null) {
       }
     })
     
-    // Stage 7: Optional OpenAI Vision API analysis
-    if (openAIApiKey && visualAnalysis?.success && visualAnalysis.imageData) {
-      if (onProgress) onProgress(88, 'Running AI-powered analysis...')
-      try {
-        openAIAnalysis = await analyzeWithOpenAI(visualAnalysis.imageData, openAIApiKey)
-        if (openAIAnalysis && openAIAnalysis.success && openAIAnalysis.specs) {
-          // Merge OpenAI specs with visual analysis
-          visualAnalysis.openAISpecs = openAIAnalysis.specs
-        }
-      } catch (openAIError) {
-        console.warn('OpenAI analysis failed, continuing without it:', openAIError)
-        // Continue without OpenAI analysis - not critical
-        openAIAnalysis = { success: false, error: openAIError.message }
-      }
+    // Stage 7: Required OpenAI Vision API analysis
+    if (!openAIApiKey || !openAIApiKey.trim()) {
+      throw new Error('OpenAI API key is required for resume analysis')
+    }
+
+    if (!visualAnalysis?.success || !visualAnalysis.imageData) {
+      throw new Error('Visual analysis failed. Cannot proceed with AI analysis.')
+    }
+
+    if (onProgress) onProgress(88, 'Running AI-powered analysis...')
+    
+    openAIAnalysis = await analyzeWithOpenAI(visualAnalysis.imageData, openAIApiKey)
+    
+    if (!openAIAnalysis || !openAIAnalysis.success) {
+      throw new Error(`OpenAI analysis failed: ${openAIAnalysis?.error || 'Unknown error'}`)
+    }
+
+    if (openAIAnalysis.specs) {
+      // Merge OpenAI specs with visual analysis
+      visualAnalysis.openAISpecs = openAIAnalysis.specs
     }
     
-    // Stage 8: Analyzing styling specifications (combine text + visual + AI)
-    if (onProgress) onProgress(92, 'Combining all analysis results...')
-    
-    // Analyze layout and extract styling specifications
-    const stylingSpecs = analyzePDFStyling(textItems, viewport, visualAnalysis, openAIAnalysis)
-
-    // Stage 9: Extracting structured content
-    if (onProgress) onProgress(95, 'Extracting structured content...')
+    // Stage 8: Extracting structured content (needed for enhanced styling)
+    if (onProgress) onProgress(90, 'Extracting structured content...')
     
     // Extract structured content
     const structuredContent = extractStructuredContent(textItems)
+    
+    // Stage 9: Analyzing styling specifications (combine text + visual + AI + enhanced)
+    if (onProgress) onProgress(92, 'Combining all analysis results...')
+    
+    // Analyze layout and extract styling specifications
+    const stylingSpecs = analyzePDFStyling(textItems, viewport, visualAnalysis, openAIAnalysis, structuredContent)
     
     // Stage 10: Finalizing
     if (onProgress) onProgress(100, 'Finalizing...')
@@ -175,9 +197,10 @@ export async function parsePDF(file, onProgress, openAIApiKey = null) {
  * @param {Object} viewport - PDF viewport dimensions
  * @param {Object} visualAnalysis - Optional visual analysis results
  * @param {Object} openAIAnalysis - Optional OpenAI analysis results
+ * @param {Object} structuredContent - Parsed structured content
  * @returns {Object} Styling specifications
  */
-function analyzePDFStyling(textItems, viewport, visualAnalysis = null, openAIAnalysis = null) {
+function analyzePDFStyling(textItems, viewport, visualAnalysis = null, openAIAnalysis = null, structuredContent = null) {
   if (!textItems || textItems.length === 0) {
     return getDefaultSpecs()
   }
@@ -281,43 +304,59 @@ function analyzePDFStyling(textItems, viewport, visualAnalysis = null, openAIAna
   // Detect bullet points
   const bulletStyle = detectBulletStyle(textItems)
 
-  return {
-    fonts: {
-      name: {
-        family: 'Helvetica', // Default, could be extracted from fontName
-        size: Math.round(nameSize),
-        weight: 'bold'
-      },
-      sectionTitle: {
-        family: 'Helvetica',
-        size: Math.round(sectionTitleSize),
-        weight: 'bold',
-        transform: 'uppercase' // Will be determined from text analysis
-      },
-      body: {
-        family: 'Helvetica',
-        size: Math.round(bodySize),
-        lineHeight: 1.5
-      },
-      contact: {
-        family: 'Helvetica',
-        size: Math.round(contactSize)
-      }
+  // Extract enhanced styling specifications
+  const enhancedStyling = extractEnhancedStyling(textItems, structuredContent)
+  
+  // Merge enhanced fonts with basic fonts (enhanced takes precedence)
+  const mergedFonts = {
+    name: {
+      ...enhancedStyling.fonts.name,
+      size: enhancedStyling.fonts.name.size || Math.round(nameSize),
+      weight: enhancedStyling.fonts.name.weight || 'bold'
     },
+    sectionTitle: {
+      ...enhancedStyling.fonts.sectionTitle,
+      size: enhancedStyling.fonts.sectionTitle.size || Math.round(sectionTitleSize),
+      weight: enhancedStyling.fonts.sectionTitle.weight || 'bold',
+      transform: enhancedStyling.transforms.sectionTitle || 'uppercase'
+    },
+    subtitle: enhancedStyling.fonts.subtitle,
+    companyName: enhancedStyling.fonts.companyName,
+    roleTitle: enhancedStyling.fonts.roleTitle,
+    date: enhancedStyling.fonts.date,
+    body: {
+      ...enhancedStyling.fonts.body,
+      size: enhancedStyling.fonts.body.size || Math.round(bodySize),
+      lineHeight: 1.5
+    },
+    bulletText: enhancedStyling.fonts.bulletText,
+    contact: {
+      ...enhancedStyling.fonts.contact,
+      size: enhancedStyling.fonts.contact.size || Math.round(contactSize)
+    },
+    skills: enhancedStyling.fonts.skills,
+    education: enhancedStyling.fonts.education
+  }
+
+  return {
+    fonts: mergedFonts,
     layout: {
       margins: margins,
       sectionSpacing: avgSectionSpacing,
       paragraphSpacing: 8
     },
     bullets: {
-      style: bulletStyle,
-      indentation: 10,
-      lineSpacing: 1.5
+      ...enhancedStyling.bullets,
+      style: enhancedStyling.bullets.style || bulletStyle
     },
+    links: enhancedStyling.links,
+    transforms: enhancedStyling.transforms,
     constraints: {
       onePage: true,
       maxCharactersPerLine: 80
-    }
+    },
+    colors: colors,
+    visualElements: visualAnalysis?.success ? visualAnalysis.visualSpecs.elements : null
   }
 }
 
