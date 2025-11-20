@@ -2,8 +2,11 @@ import React from 'react'
 import { pdf } from '@react-pdf/renderer'
 import ResumeDocument from '../components/ResumeDocument'
 
-export const generatePDF = async (resumeData) => {
-  const doc = React.createElement(ResumeDocument, { data: resumeData })
+export const generatePDF = async (resumeData, stylingSpecs = null) => {
+  const doc = React.createElement(ResumeDocument, { 
+    data: resumeData,
+    stylingSpecs: stylingSpecs
+  })
   const asPdf = pdf(doc)
   const blob = await asPdf.toBlob()
   

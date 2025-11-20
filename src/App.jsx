@@ -4,9 +4,11 @@ import ReferenceInput from './components/ReferenceInput'
 import TemplateReview from './components/TemplateReview'
 import NewResumeInput from './components/NewResumeInput'
 import ParsedContentReview from './components/ParsedContentReview'
+import FormattedResumePreview from './components/FormattedResumePreview'
 import { generatePDF } from './utils/pdfGenerator'
 import { parsePDF } from './utils/pdfParser'
 import { parseResumeContent } from './utils/contentParser'
+import { applyStylingWithAI } from './utils/styleMatcher'
 import { extractStylingSpecs, createReferenceTemplate } from './utils/stylingExtractor'
 import { loadTemplate } from './utils/templateStorage'
 import './App.css'
@@ -17,6 +19,8 @@ function App() {
   const [referenceTemplate, setReferenceTemplate] = useState(null)
   const [analyzedTemplate, setAnalyzedTemplate] = useState(null)
   const [parsedContent, setParsedContent] = useState(null)
+  const [styledContent, setStyledContent] = useState(null)
+  const [isApplyingStyling, setIsApplyingStyling] = useState(false)
   
   const [resumeData, setResumeData] = useState({
     name: '',
@@ -141,11 +145,53 @@ function App() {
     }
   }
 
-  const handleConfirmParsedContent = (content) => {
+  const handleConfirmParsedContent = async (content) => {
     setParsedContent(content)
-    // Next: Apply styling and show preview (Phase 3)
+    
+    if (!referenceTemplate) {
+      alert('Reference template is required. Please set up a reference resume first.')
+      setCurrentView('reference-setup')
+      return
+    }
+
+    const openAIApiKey = localStorage.getItem('openai_api_key')
+    if (!openAIApiKey) {
+      alert('OpenAI API key is required for styling. Please configure it first.')
+      setCurrentView('reference-setup')
+      return
+    }
+
+    setIsApplyingStyling(true)
     setCurrentView('formatted-preview')
-    // TODO: Apply reference template styling to content
+
+    try {
+      // Apply styling using AI (this should NOT modify content, only add styling)
+      const result = await applyStylingWithAI(content, referenceTemplate, openAIApiKey)
+      
+      if (result.success) {
+        // Ensure we're using the original content, not AI-modified content
+        const styledContent = {
+          ...content, // Use original content
+          styling: referenceTemplate.stylingSpecs // Add styling specs
+        }
+        setStyledContent(styledContent)
+      } else {
+        // Use original content with reference styling
+        setStyledContent({
+          ...content,
+          styling: referenceTemplate.stylingSpecs
+        })
+      }
+    } catch (error) {
+      console.error('Error applying styling:', error)
+      // Use original content with reference styling
+      setStyledContent({
+        ...content,
+        styling: referenceTemplate.stylingSpecs
+      })
+    } finally {
+      setIsApplyingStyling(false)
+    }
   }
 
   const handleEditParsedContent = () => {
@@ -297,8 +343,10 @@ function App() {
     )
   }
 
-  // Formatted preview view (Phase 3 - will implement next)
+  // Formatted preview view
   if (currentView === 'formatted-preview') {
+    const openAIApiKey = localStorage.getItem('openai_api_key') || ''
+    
     return (
       <div className="app">
         <header className="app-header">
@@ -306,19 +354,27 @@ function App() {
           <p>Preview formatted resume</p>
         </header>
         <main className="app-main">
-          <div className="view-controls">
-            <button 
-              className="view-button"
-              onClick={() => setCurrentView('parsed-content-review')}
-            >
-              ← Back to Edit
-            </button>
-          </div>
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p>Formatted preview will be shown here (Phase 3)</p>
-            <p>Content ready: {parsedContent ? 'Yes' : 'No'}</p>
-            <p>Template ready: {referenceTemplate ? 'Yes' : 'No'}</p>
-          </div>
+          {isApplyingStyling ? (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <div className="loading-spinner">
+                <p>Applying reference styling with AI...</p>
+                <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+                  This may take a few moments
+                </p>
+              </div>
+            </div>
+          ) : styledContent ? (
+            <FormattedResumePreview
+              styledContent={styledContent}
+              referenceTemplate={referenceTemplate}
+              openAIApiKey={openAIApiKey}
+              onBack={() => setCurrentView('parsed-content-review')}
+            />
+          ) : (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <p>Loading preview...</p>
+            </div>
+          )}
         </main>
       </div>
     )

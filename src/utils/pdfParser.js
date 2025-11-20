@@ -133,13 +133,24 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
     
     openAIAnalysis = await analyzeWithOpenAI(visualAnalysis.imageData, openAIApiKey)
     
-    if (!openAIAnalysis || !openAIAnalysis.success) {
-      throw new Error(`OpenAI analysis failed: ${openAIAnalysis?.error || 'Unknown error'}`)
+    // Handle OpenAI analysis - if it fails but returns success with null specs, continue
+    if (!openAIAnalysis) {
+      throw new Error('OpenAI analysis failed: No response received')
     }
-
-    if (openAIAnalysis.specs) {
-      // Merge OpenAI specs with visual analysis
+    
+    if (!openAIAnalysis.success) {
+      // If it's a JSON parse error, we can continue with programmatic extraction
+      if (openAIAnalysis.error && openAIAnalysis.error.includes('JSON')) {
+        console.warn('OpenAI returned invalid JSON, continuing with programmatic extraction')
+        // Continue without AI specs
+      } else {
+        throw new Error(`OpenAI analysis failed: ${openAIAnalysis.error || 'Unknown error'}`)
+      }
+    } else if (openAIAnalysis.specs) {
+      // Merge OpenAI specs with visual analysis if available
       visualAnalysis.openAISpecs = openAIAnalysis.specs
+    } else {
+      console.warn('OpenAI analysis succeeded but returned no specs, using programmatic extraction')
     }
     
     // Stage 8: Extracting structured content (needed for enhanced styling)

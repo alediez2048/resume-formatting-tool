@@ -127,18 +127,22 @@ const ParsedContentReview = ({ parsedContent, onConfirm, onEdit }) => {
           </div>
         </div>
 
-        {/* Personal Statement */}
-        {editedContent.personalStatement && (
-          <div className="content-section">
-            <h3>Personal Statement</h3>
-            <textarea
-              value={editedContent.personalStatement}
-              onChange={(e) => handleFieldChange('personalStatement', null, e.target.value)}
-              rows={4}
-              className="content-textarea"
-            />
-          </div>
-        )}
+        {/* Personal Statement - Always show, even if empty */}
+        <div className="content-section">
+          <h3>Personal Statement / Professional Summary</h3>
+          <textarea
+            value={editedContent.personalStatement || ''}
+            onChange={(e) => handleFieldChange('personalStatement', null, e.target.value)}
+            rows={4}
+            className="content-textarea"
+            placeholder="Enter your professional summary or personal statement here..."
+          />
+          {!editedContent.personalStatement && (
+            <p className="hint-text" style={{ color: '#666', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+              💡 Tip: If you pasted a "Professional Summary" section, it should appear here. If not, you can add it manually.
+            </p>
+          )}
+        </div>
 
         {/* Work Experience */}
         {editedContent.workExperience && editedContent.workExperience.length > 0 && (
@@ -238,15 +242,28 @@ const ParsedContentReview = ({ parsedContent, onConfirm, onEdit }) => {
                       placeholder="University Name"
                     />
                   </div>
-                  <div className="form-field">
-                    <label>Degree</label>
-                    <input
-                      type="text"
-                      value={edu.degree || ''}
-                      onChange={(e) => handleFieldChange('education', 'degree', e.target.value, eduIndex)}
-                      placeholder="B.S. Computer Science"
-                    />
-                  </div>
+                  {!edu.certificate || edu.degree ? (
+                    <div className="form-field">
+                      <label>Degree</label>
+                      <input
+                        type="text"
+                        value={edu.degree || ''}
+                        onChange={(e) => handleFieldChange('education', 'degree', e.target.value, eduIndex)}
+                        placeholder="B.S. Computer Science"
+                      />
+                    </div>
+                  ) : null}
+                  {edu.certificate ? (
+                    <div className="form-field">
+                      <label>Certificate {edu.degree && '(Additional)'}</label>
+                      <input
+                        type="text"
+                        value={edu.certificate || ''}
+                        onChange={(e) => handleFieldChange('education', 'certificate', e.target.value, eduIndex)}
+                        placeholder="Web Development Immersive Certificate"
+                      />
+                    </div>
+                  ) : null}
                   <div className="form-field">
                     <label>Date</label>
                     <input
@@ -265,17 +282,6 @@ const ParsedContentReview = ({ parsedContent, onConfirm, onEdit }) => {
                       placeholder="3.8"
                     />
                   </div>
-                  {edu.certificate && (
-                    <div className="form-field">
-                      <label>Certificate</label>
-                      <input
-                        type="text"
-                        value={edu.certificate || ''}
-                        onChange={(e) => handleFieldChange('education', 'certificate', e.target.value, eduIndex)}
-                        placeholder="Certificate Name"
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

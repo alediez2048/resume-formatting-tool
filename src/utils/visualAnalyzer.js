@@ -450,25 +450,79 @@ Return a JSON object with these specifications.`
       throw new Error('OpenAI API returned empty response')
     }
     
-    // Try to extract JSON from the response
+    // Try to extract and parse JSON from the response
+    let specs = null
+    
+    // First, try to find JSON in the response
     const jsonMatch = analysisText.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
-      const specs = JSON.parse(jsonMatch[0])
-      return {
-        success: true,
-        specs,
-        rawResponse: analysisText
+      try {
+        let jsonString = jsonMatch[0]
+        
+        // Clean up common JSON issues
+        // Remove markdown code blocks if present
+        jsonString = jsonString.replace(/```json\s*/g, '').replace(/```\s*/g, '')
+        
+        // Try to fix common JSON issues
+        // Fix unquoted property names (e.g., {name: "value"} -> {"name": "value"})
+        jsonString = jsonString.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
+        
+        // Parse the cleaned JSON
+        specs = JSON.parse(jsonString)
+      } catch (parseError) {
+        console.warn('Failed to parse OpenAI JSON response:', parseError)
+        console.warn('Raw response:', analysisText)
+        console.warn('Extracted JSON:', jsonMatch[0])
+        
+        // Try alternative parsing methods
+        try {
+          // Try to extract just the JSON object more carefully
+          const cleaned = analysisText
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim()
+          
+          // Find the first { and last }
+          const firstBrace = cleaned.indexOf('{')
+          const lastBrace = cleaned.lastIndexOf('}')
+          
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            const jsonSubstring = cleaned.substring(firstBrace, lastBrace + 1)
+            specs = JSON.parse(jsonSubstring)
+          }
+        } catch (secondTryError) {
+          console.error('Second attempt to parse JSON also failed:', secondTryError)
+          // Return null specs - we'll use programmatic extraction
+        }
       }
     }
     
     return {
       success: true,
-      specs: null,
+      specs,
       rawResponse: analysisText
     }
   } catch (error) {
     console.error('OpenAI Vision API error:', error)
-    // Since OpenAI is required, throw the error instead of returning it
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    })
+    
+    // If it's a JSON parse error, provide more helpful message and continue without AI specs
+    if (error.message && (error.message.includes('JSON') || error.message.includes('parse'))) {
+      console.warn('JSON parsing failed, continuing without AI specs. Will use programmatic extraction.')
+      // Return success but with null specs - the system will use programmatic extraction
+      return {
+        success: true,
+        specs: null,
+        rawResponse: null,
+        error: 'AI analysis returned invalid JSON, using programmatic extraction instead'
+      }
+    }
+    
+    // For other errors, throw as before (since OpenAI is required)
     throw error
   }
 }
