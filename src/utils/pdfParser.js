@@ -8,15 +8,9 @@ import { analyzePDFVisual, analyzeWithOpenAI } from './visualAnalyzer'
 import { extractEnhancedStyling } from './enhancedStylingExtractor'
 
 // Set up the worker for pdfjs - use local worker file for reliability
-if (typeof window !== 'undefined') {
-  try {
-    // Use local worker file from public directory (served at root by Vite)
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
-  } catch (error) {
-    // If GlobalWorkerOptions.workerSrc is readonly, we'll pass workerSrc directly to getDocument
-    console.warn('Could not set GlobalWorkerOptions.workerSrc, will pass workerSrc directly to getDocument:', error)
-  }
-}
+// Note: We don't set GlobalWorkerOptions.workerSrc directly as it may be readonly
+// Instead, we'll always pass workerSrc directly to getDocument options
+const DEFAULT_WORKER_SRC = '/pdf.worker.min.mjs'
 
 /**
  * Add timeout wrapper to promises
@@ -52,18 +46,20 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
     // Stage 2: Parsing PDF document
     if (onProgress) onProgress(25, 'Parsing PDF document...')
     
+    // Always pass workerSrc directly to getDocument (don't rely on GlobalWorkerOptions)
+    // This avoids "readonly property" errors
+    const workerSrc = DEFAULT_WORKER_SRC
+    
     console.log('Starting PDF parsing...', {
       fileSize: arrayBuffer.byteLength,
-      workerSrc: pdfjsLib.GlobalWorkerOptions.workerSrc
+      workerSrc: workerSrc
     })
     
     // Add timeout to PDF parsing (30 seconds max)
-    // Pass workerSrc directly if GlobalWorkerOptions.workerSrc wasn't set
-    const workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc || '/pdf.worker.min.mjs'
     const pdf = await withTimeout(
       pdfjsLib.getDocument({ 
         data: arrayBuffer,
-        workerSrc: workerSrc, // Pass workerSrc directly as fallback
+        workerSrc: workerSrc, // Always pass directly to avoid readonly property errors
         verbosity: 0, // Reduce logging
         stopAtErrors: false // Continue even with errors
       }).promise,
