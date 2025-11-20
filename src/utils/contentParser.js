@@ -9,8 +9,12 @@
  * @returns {Object} Parsed resume content
  */
 export function parseResumeContent(resumeText) {
+  console.log('🚀 parseResumeContent called with text length:', resumeText?.length || 0)
+  console.log('📝 First 200 chars of input:', resumeText?.substring(0, 200) || 'EMPTY')
+  
   try {
     if (!resumeText || !resumeText.trim()) {
+      console.error('❌ Resume text is empty!')
       return { error: 'Resume text is empty' }
     }
 
@@ -19,6 +23,8 @@ export function parseResumeContent(resumeText) {
     const originalLines = resumeText.split('\n')
     // Create trimmed version for pattern matching, but preserve originals
     const trimmedLines = originalLines.map(line => line.trim())
+    
+    console.log(`📏 Total lines: ${originalLines.length} (${trimmedLines.filter(l => l).length} non-empty)`)
     
     // Extract contact information (usually first few lines) - use trimmed for contact extraction
     const contactInfo = extractContactInfo(trimmedLines.filter(line => line))
