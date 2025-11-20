@@ -488,11 +488,25 @@ Return a JSON object with these specifications.`
           
           if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
             const jsonSubstring = cleaned.substring(firstBrace, lastBrace + 1)
-            specs = JSON.parse(jsonSubstring)
+            // Try to fix common JSON issues before parsing
+            let fixedJson = jsonSubstring
+              // Fix unquoted property names
+              .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
+              // Fix single quotes to double quotes
+              .replace(/'/g, '"')
+              // Fix trailing commas
+              .replace(/,(\s*[}\]])/g, '$1')
+              // Fix yes/no values (common in OpenAI responses)
+              .replace(/:\s*yes\s*([,}])/gi, ': true$1')
+              .replace(/:\s*no\s*([,}])/gi, ': false$1')
+            
+            specs = JSON.parse(fixedJson)
           }
         } catch (secondTryError) {
-          console.error('Second attempt to parse JSON also failed:', secondTryError)
+          console.warn('Second attempt to parse JSON also failed:', secondTryError)
+          console.warn('This is OK - will use programmatic extraction instead')
           // Return null specs - we'll use programmatic extraction
+          specs = null
         }
       }
     }
