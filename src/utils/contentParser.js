@@ -140,11 +140,14 @@ function extractSections(originalLines, trimmedLines) {
   }
 
   const sectionPatterns = {
-    personalStatement: /^(personal\s+statement|summary|professional\s+summary|about|profile|objective|professional\s+summary|executive\s+summary)$/i,
-    workExperience: /^(work\s+experience|experience|employment|professional\s+experience|career\s+history|professional\s+experience)$/i,
+    personalStatement: /^(personal\s+statement|summary|professional\s+summary|about|profile|objective|executive\s+summary|professional\s+summary|summary\s+of\s+qualifications|career\s+summary|overview)$/i,
+    workExperience: /^(work\s+experience|experience|employment|professional\s+experience|career\s+history|professional\s+experience|work\s+history|employment\s+history)$/i,
     skills: /^(skills|technical\s+skills|core\s+competencies|competencies|key\s+skills|core\s+skills|technical\s+proficiencies|core\s+skills)$/i,
     education: /^(education|academic\s+background|qualifications|academic)$/i
   }
+  
+  // Debug: Log section patterns for troubleshooting
+  console.log('🔍 Section patterns:', Object.keys(sectionPatterns))
 
   let currentSection = null
   let sectionContent = []
@@ -176,14 +179,18 @@ function extractSections(originalLines, trimmedLines) {
     
     for (const [sectionKey, pattern] of Object.entries(sectionPatterns)) {
       if (pattern.test(trimmedLine)) {
+        console.log(`✅ Found section header at line ${i}: "${trimmedLine}" → ${sectionKey}`)
+        
         // Save previous section content
         if (currentSection && sectionContent.length > 0) {
           if (currentSection === 'workExperience' || currentSection === 'education') {
             sections[currentSection].push(sectionContent.join('\n'))
+            console.log(`💾 Saved ${currentSection} section with ${sectionContent.length} lines`)
           } else {
             const content = sectionContent.join('\n').trim()
             if (content.length > 0) {
               sections[currentSection] = content
+              console.log(`💾 Saved ${currentSection} section: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`)
             }
           }
         }
@@ -225,12 +232,17 @@ function extractSections(originalLines, trimmedLines) {
           // This might be personal statement content
           if (!sections.personalStatement) {
             sections.personalStatement = trimmedLine
+            console.log(`💬 Found potential personal statement content at line ${i}: "${trimmedLine.substring(0, 50)}${trimmedLine.length > 50 ? '...' : ''}"`)
           } else {
             sections.personalStatement += ' ' + trimmedLine
+            console.log(`💬 Appended to personal statement at line ${i}`)
           }
         } else if (trimmedLine) {
           // Unidentified section (only if not blank)
           sections.other.push(originalLine)
+          if (i < 30) { // Only log first 30 lines to avoid spam
+            console.log(`❓ Unidentified line ${i}: "${trimmedLine.substring(0, 40)}${trimmedLine.length > 40 ? '...' : ''}"`)
+          }
         }
       }
     }
@@ -240,15 +252,29 @@ function extractSections(originalLines, trimmedLines) {
   if (currentSection && sectionContent.length > 0) {
     if (currentSection === 'workExperience' || currentSection === 'education') {
       sections[currentSection].push(sectionContent.join('\n'))
+      console.log(`💾 Saved final ${currentSection} section with ${sectionContent.length} lines`)
     } else {
-      sections[currentSection] = sectionContent.join('\n').trim()
+      const content = sectionContent.join('\n').trim()
+      if (content.length > 0) {
+        sections[currentSection] = content
+        console.log(`💾 Saved final ${currentSection} section: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`)
+      }
     }
   }
 
   // Clean up personal statement - remove if it's empty or just whitespace
   if (sections.personalStatement && sections.personalStatement.trim().length === 0) {
+    console.log('⚠️ Personal statement was empty, setting to null')
     sections.personalStatement = null
   }
+  
+  // Debug: Show what we found
+  console.log('📋 Final sections extracted:', {
+    personalStatement: sections.personalStatement ? `✅ "${sections.personalStatement.substring(0, 60)}${sections.personalStatement.length > 60 ? '...' : ''}"` : '❌ NOT FOUND',
+    workExperience: sections.workExperience.length > 0 ? `✅ ${sections.workExperience.length} section(s)` : '❌ None',
+    skills: sections.skills ? '✅ Found' : '❌ NOT FOUND',
+    education: sections.education.length > 0 ? `✅ ${sections.education.length} section(s)` : '❌ None'
+  })
 
   return sections
 }
