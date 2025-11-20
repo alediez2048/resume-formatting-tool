@@ -310,12 +310,15 @@ function extractSections(originalLines, trimmedLines) {
  */
 function extractWorkExperience(workExpSections) {
   if (!workExpSections || workExpSections.length === 0) {
+    console.log('⚠️ No work experience sections found')
     return []
   }
 
+  console.log(`💼 Extracting work experience from ${workExpSections.length} section(s)`)
   const experiences = []
 
-  workExpSections.forEach(section => {
+  workExpSections.forEach((section, sectionIndex) => {
+    console.log(`📄 Processing work experience section ${sectionIndex + 1}:`, section.substring(0, 200) + (section.length > 200 ? '...' : ''))
     // Split section into lines - preserve original for bullet detection
     const originalLines = section.split('\n')
     // Create mapping: index -> original line (to handle duplicates)
@@ -348,19 +351,51 @@ function extractWorkExperience(workExpSections) {
                    /^\s{1,8}\d+[\.\)]/.test(originalLine) || // Numbered with leading spaces
                    originalLine.startsWith('\t') // Tab-indented
       
+      // Check for common resume formats first
+      // Format 1: "Job Title | Company | Date" or "Company | Job Title | Date"
+      const pipeFormat = line.includes('|')
+      let detectedCompany = null
+      let detectedTitle = null
+      let detectedDate = null
+      
+      if (pipeFormat) {
+        const parts = line.split('|').map(p => p.trim()).filter(p => p)
+        if (parts.length >= 2) {
+          // Try to identify which part is company, title, date
+          parts.forEach((part, idx) => {
+            if (isDate(part)) {
+              detectedDate = part
+            } else if (idx === 0 && !isDate(part)) {
+              // First part might be title or company
+              detectedTitle = part
+            } else if (idx === 1 && !isDate(part)) {
+              // Second part might be company
+              detectedCompany = part
+            }
+          })
+          
+          // If we have 3 parts: title, company, date
+          if (parts.length >= 3) {
+            detectedTitle = parts[0]
+            detectedCompany = parts[1]
+            detectedDate = parts[2] || detectedDate
+          }
+        }
+      }
+      
       // Check if this line looks like a company name
       // Company names are usually:
       // - Short to medium length (less than 80 chars)
       // - Not starting with bullet points, tabs, or special chars
-      // - Not containing "|" (which would be a different format)
       // - Not a date
       // - Not a section header
       // - Followed by lines that look like job title, then location/date
-      const isLikelyCompany = line.length < 80 && 
+      const isLikelyCompany = !isBullet &&
+                             line.length < 80 && 
+                             line.length > 2 &&
                              !line.startsWith('•') && 
                              !line.startsWith('-') &&
                              !line.startsWith('\t') &&
-                             !line.includes('|') &&
                              !isDate(line) &&
                              !isSectionHeader(line) &&
                              i + 1 < allLines.length &&
@@ -402,11 +437,36 @@ function extractWorkExperience(workExpSections) {
         isNewCompanyAfterBullets = hasTitle && hasDate
       }
 
+      // Handle pipe format (Job Title | Company | Date)
+      if (pipeFormat && detectedCompany) {
+        // Save previous experience if exists
+        if (currentExp) {
+          currentExp.bullets = currentBullets
+          experiences.push(currentExp)
+          console.log(`💾 Saved experience: ${currentExp.company} - ${currentExp.title} (${currentBullets.length} bullets)`)
+        }
+        
+        // Start new experience from pipe format
+        currentExp = {
+          company: detectedCompany,
+          title: detectedTitle || '',
+          date: detectedDate || '',
+          location: '',
+          bullets: []
+        }
+        currentBullets = []
+        console.log(`✅ Detected new experience (pipe format): ${detectedCompany} - ${detectedTitle || 'No title'}`)
+        i++
+        continue
+      }
+      
+      // Check if this is a new company (standard format)
       if ((isLikelyCompany && (looksLikeNewCompany || isNewCompanyAfterBullets)) || (isLikelyCompany && currentExp === null)) {
         // Save previous experience if exists
         if (currentExp) {
           currentExp.bullets = currentBullets
           experiences.push(currentExp)
+          console.log(`💾 Saved experience: ${currentExp.company} - ${currentExp.title} (${currentBullets.length} bullets)`)
         }
 
         // Start new experience
@@ -414,6 +474,8 @@ function extractWorkExperience(workExpSections) {
         let title = ''
         let date = ''
         let location = ''
+        
+        console.log(`✅ Detected potential company at line ${i}: "${company}"`)
 
         // Next line is likely job title
         if (i + 1 < allLines.length) {
@@ -469,6 +531,7 @@ function extractWorkExperience(workExpSections) {
           bullets: []
         }
         currentBullets = []
+        console.log(`📝 Created new experience entry: Company="${company}", Title="${title}", Date="${date}"`)
       } else if (isBullet) {
         // This is a bullet point
         if (currentExp) {
@@ -523,7 +586,13 @@ function extractWorkExperience(workExpSections) {
     if (currentExp) {
       currentExp.bullets = currentBullets
       experiences.push(currentExp)
+      console.log(`💾 Saved final experience: ${currentExp.company} - ${currentExp.title} (${currentBullets.length} bullets)`)
     }
+    
+    console.log(`📊 Work experience extraction complete: ${experiences.length} experience(s) found`)
+    experiences.forEach((exp, idx) => {
+      console.log(`  ${idx + 1}. ${exp.company || 'No company'} - ${exp.title || 'No title'} (${exp.bullets?.length || 0} bullets)`)
+    })
 
     // Fallback: If no experiences found with new logic, try old logic
     if (experiences.length === 0) {
