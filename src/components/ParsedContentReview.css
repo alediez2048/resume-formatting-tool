@@ -171,6 +171,13 @@
   border-color: #ccc;
 }
 
+.skills-hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
 .review-actions {
   display: flex;
   justify-content: center;

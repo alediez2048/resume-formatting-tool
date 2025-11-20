@@ -210,10 +210,15 @@ const ParsedContentReview = ({ parsedContent, onConfirm, onEdit }) => {
             <textarea
               value={editedContent.skills}
               onChange={(e) => handleFieldChange('skills', null, e.target.value)}
-              rows={3}
+              rows={editedContent.skills.includes('\n') ? 8 : 3}
               className="content-textarea"
-              placeholder="JavaScript, React, Node.js, Python..."
+              placeholder="JavaScript, React, Node.js, Python...&#10;Or categorized:&#10;LLM & AI Tools: OpenAI API, Gemini...&#10;Creative Tools: Final Cut Pro, After Effects..."
             />
+            <p className="skills-hint">
+              {editedContent.skills.includes(':') 
+                ? 'Categorized skills detected. Each line can be a category: "Category: skill1, skill2"' 
+                : 'Enter skills as comma-separated or one per line. For categories, use format: "Category: skills"'}
+            </p>
           </div>
         )}
 
@@ -225,19 +230,21 @@ const ParsedContentReview = ({ parsedContent, onConfirm, onEdit }) => {
               <div key={eduIndex} className="education-item">
                 <div className="form-fields">
                   <div className="form-field">
-                    <label>Degree</label>
-                    <input
-                      type="text"
-                      value={edu.degree || ''}
-                      onChange={(e) => handleFieldChange('education', 'degree', e.target.value, eduIndex)}
-                    />
-                  </div>
-                  <div className="form-field">
                     <label>School</label>
                     <input
                       type="text"
                       value={edu.school || ''}
                       onChange={(e) => handleFieldChange('education', 'school', e.target.value, eduIndex)}
+                      placeholder="University Name"
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Degree</label>
+                    <input
+                      type="text"
+                      value={edu.degree || ''}
+                      onChange={(e) => handleFieldChange('education', 'degree', e.target.value, eduIndex)}
+                      placeholder="B.S. Computer Science"
                     />
                   </div>
                   <div className="form-field">
@@ -249,6 +256,26 @@ const ParsedContentReview = ({ parsedContent, onConfirm, onEdit }) => {
                       placeholder="2015 - 2019"
                     />
                   </div>
+                  <div className="form-field">
+                    <label>GPA</label>
+                    <input
+                      type="text"
+                      value={edu.gpa || ''}
+                      onChange={(e) => handleFieldChange('education', 'gpa', e.target.value, eduIndex)}
+                      placeholder="3.8"
+                    />
+                  </div>
+                  {edu.certificate && (
+                    <div className="form-field">
+                      <label>Certificate</label>
+                      <input
+                        type="text"
+                        value={edu.certificate || ''}
+                        onChange={(e) => handleFieldChange('education', 'certificate', e.target.value, eduIndex)}
+                        placeholder="Certificate Name"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
