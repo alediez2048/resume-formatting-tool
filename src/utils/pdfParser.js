@@ -9,8 +9,13 @@ import { extractEnhancedStyling } from './enhancedStylingExtractor'
 
 // Set up the worker for pdfjs - use local worker file for reliability
 if (typeof window !== 'undefined') {
-  // Use local worker file from public directory (served at root by Vite)
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+  try {
+    // Use local worker file from public directory (served at root by Vite)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
+  } catch (error) {
+    // If GlobalWorkerOptions.workerSrc is readonly, we'll pass workerSrc directly to getDocument
+    console.warn('Could not set GlobalWorkerOptions.workerSrc, will pass workerSrc directly to getDocument:', error)
+  }
 }
 
 /**
@@ -53,9 +58,12 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
     })
     
     // Add timeout to PDF parsing (30 seconds max)
+    // Pass workerSrc directly if GlobalWorkerOptions.workerSrc wasn't set
+    const workerSrc = pdfjsLib.GlobalWorkerOptions.workerSrc || '/pdf.worker.min.mjs'
     const pdf = await withTimeout(
       pdfjsLib.getDocument({ 
         data: arrayBuffer,
+        workerSrc: workerSrc, // Pass workerSrc directly as fallback
         verbosity: 0, // Reduce logging
         stopAtErrors: false // Continue even with errors
       }).promise,
