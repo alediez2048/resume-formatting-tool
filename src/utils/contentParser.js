@@ -154,14 +154,26 @@ function extractSections(originalLines, trimmedLines) {
   let headerEndIndex = 0
 
   // Skip header (first few lines) - use trimmed for detection
-  for (let i = 0; i < Math.min(5, trimmedLines.length); i++) {
+  // Look for contact info section (name, email, phone, etc.)
+  for (let i = 0; i < Math.min(8, trimmedLines.length); i++) {
     const line = trimmedLines[i]
-    if (line && line.length < 50 && /^[A-Z\s\-]+$/.test(line) && line.length > 3) {
-      // Might be a section header
+    // Check if this looks like a section header (all caps, short, not contact info)
+    const looksLikeSectionHeader = line && 
+                                   line.length < 50 && 
+                                   line.length > 3 &&
+                                   /^[A-Z\s\-]+$/.test(line) &&
+                                   !line.includes('@') && // Not email
+                                   !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(line) && // Not phone
+                                   !/^[A-Z][a-z]+/.test(line) // Not mixed case (likely name)
+    
+    if (looksLikeSectionHeader && !sectionPatterns.personalStatement.test(line)) {
+      // Might be a section header (but not personal statement)
       break
     }
     headerEndIndex = i
   }
+  
+  console.log(`📍 Header end index: ${headerEndIndex} (checked first ${Math.min(8, trimmedLines.length)} lines)`)
 
   // Parse remaining sections - iterate through trimmed lines but preserve originals
   for (let i = headerEndIndex + 1; i < trimmedLines.length; i++) {
@@ -228,20 +240,28 @@ function extractSections(originalLines, trimmedLines) {
         const isSubstantialText = trimmedLine.length > 10 && !isDate(trimmedLine)
         
         // More lenient: accept any substantial text before first section header
-        if (i < headerEndIndex + 20 && isSubstantialText && isNotASectionHeader && isNotADivider) {
+        // Also check if it might be personal statement even if it's further down
+        const isBeforeFirstSection = i < headerEndIndex + 30 // Extended range
+        const isSubstantialEnough = trimmedLine.length > 8 // More lenient (was 10)
+        
+        if (isBeforeFirstSection && isSubstantialEnough && isNotASectionHeader && isNotADivider) {
           // This might be personal statement content
           if (!sections.personalStatement) {
             sections.personalStatement = trimmedLine
             console.log(`💬 Found potential personal statement content at line ${i}: "${trimmedLine.substring(0, 50)}${trimmedLine.length > 50 ? '...' : ''}"`)
           } else {
             sections.personalStatement += ' ' + trimmedLine
-            console.log(`💬 Appended to personal statement at line ${i}`)
+            console.log(`💬 Appended to personal statement at line ${i}: "${trimmedLine.substring(0, 30)}${trimmedLine.length > 30 ? '...' : ''}"`)
           }
         } else if (trimmedLine) {
           // Unidentified section (only if not blank)
           sections.other.push(originalLine)
           if (i < 30) { // Only log first 30 lines to avoid spam
-            console.log(`❓ Unidentified line ${i}: "${trimmedLine.substring(0, 40)}${trimmedLine.length > 40 ? '...' : ''}"`)
+            const reason = !isBeforeFirstSection ? 'too far from header' : 
+                          !isSubstantialEnough ? 'too short' : 
+                          !isNotASectionHeader ? 'is section header' : 
+                          !isNotADivider ? 'is divider' : 'unknown'
+            console.log(`❓ Unidentified line ${i} (${reason}): "${trimmedLine.substring(0, 40)}${trimmedLine.length > 40 ? '...' : ''}"`)
           }
         }
       }
