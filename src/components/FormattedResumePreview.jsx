@@ -73,13 +73,22 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
     
     try {
       // Validate data structure
+      // CRITICAL: Use null instead of empty string for personalStatement to ensure it renders
       const dataToRender = {
         contactInfo: optimizedContent.contactInfo || {},
-        personalStatement: optimizedContent.personalStatement || '',
+        personalStatement: optimizedContent.personalStatement || null, // Use null, not empty string
         workExperience: optimizedContent.workExperience || [],
         skills: optimizedContent.skills || '',
         education: optimizedContent.education || []
       }
+      
+      // Debug logging
+      console.log('📄 FormattedResumePreview - dataToRender:', {
+        hasPersonalStatement: !!dataToRender.personalStatement,
+        personalStatementLength: dataToRender.personalStatement?.length || 0,
+        workExperienceCount: dataToRender.workExperience.length,
+        totalBullets: dataToRender.workExperience.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0)
+      })
 
       // ALWAYS use reference styling - this is the core feature
       // Only use adjusted styling if explicitly set (for re-optimization)

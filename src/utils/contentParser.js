@@ -14,13 +14,17 @@ export function parseResumeContent(resumeText) {
       return { error: 'Resume text is empty' }
     }
 
-    const lines = resumeText.split('\n').map(line => line.trim()).filter(line => line)
+    // CRITICAL FIX: Preserve original lines with whitespace for proper parsing
+    // Blank lines are important for section structure
+    const originalLines = resumeText.split('\n')
+    // Create trimmed version for pattern matching, but preserve originals
+    const trimmedLines = originalLines.map(line => line.trim())
     
-    // Extract contact information (usually first few lines)
-    const contactInfo = extractContactInfo(lines)
+    // Extract contact information (usually first few lines) - use trimmed for contact extraction
+    const contactInfo = extractContactInfo(trimmedLines.filter(line => line))
     
-    // Identify and extract sections
-    const sections = extractSections(lines)
+    // Identify and extract sections - pass both original and trimmed for proper handling
+    const sections = extractSections(originalLines, trimmedLines)
     
     // Extract work experience
     const workExperience = extractWorkExperience(sections.workExperience || [])
@@ -31,10 +35,19 @@ export function parseResumeContent(resumeText) {
     // Extract skills
     const skills = extractSkills(sections.skills || [])
     
+    // Debug logging
+    console.log('📊 PARSER RESULT:', {
+      personalStatement: sections.personalStatement ? `✅ Found (${sections.personalStatement.length} chars)` : '❌ NOT FOUND',
+      workExperienceCount: workExperience.length,
+      workExperienceBullets: workExperience.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0),
+      skills: skills ? '✅ Found' : '❌ NOT FOUND',
+      educationCount: education.length
+    })
+    
     return {
       success: true,
       contactInfo,
-      personalStatement: sections.personalStatement || null,
+      personalStatement: sections.personalStatement || null, // Use null, not empty string
       workExperience,
       skills,
       education,
@@ -114,8 +127,10 @@ function extractContactInfo(lines) {
 
 /**
  * Extract sections from resume text
+ * @param {string[]} originalLines - Original lines with whitespace preserved
+ * @param {string[]} trimmedLines - Trimmed lines for pattern matching
  */
-function extractSections(lines) {
+function extractSections(originalLines, trimmedLines) {
   const sections = {
     personalStatement: null,
     workExperience: [],
@@ -135,39 +150,46 @@ function extractSections(lines) {
   let sectionContent = []
   let headerEndIndex = 0
 
-  // Skip header (first few lines)
-  for (let i = 0; i < Math.min(5, lines.length); i++) {
-    const line = lines[i]
-    if (line.length < 50 && /^[A-Z\s\-]+$/.test(line) && line.length > 3) {
+  // Skip header (first few lines) - use trimmed for detection
+  for (let i = 0; i < Math.min(5, trimmedLines.length); i++) {
+    const line = trimmedLines[i]
+    if (line && line.length < 50 && /^[A-Z\s\-]+$/.test(line) && line.length > 3) {
       // Might be a section header
       break
     }
     headerEndIndex = i
   }
 
-  // Parse remaining sections
-  for (let i = headerEndIndex + 1; i < lines.length; i++) {
-    const line = lines[i]
+  // Parse remaining sections - iterate through trimmed lines but preserve originals
+  for (let i = headerEndIndex + 1; i < trimmedLines.length; i++) {
+    const trimmedLine = trimmedLines[i] || ''
+    const originalLine = originalLines[i] || ''
     
     // Skip divider lines (e.g., "⸻", "---", "___")
-    if (/^[⸻\-_=]+$/.test(line)) {
+    if (/^[⸻\-_=]+$/.test(trimmedLine)) {
       continue
     }
     
-    // Check if this is a section header
+    // Check if this is a section header (use trimmed for matching)
     let isSectionHeader = false
+    let matchedSectionKey = null
+    
     for (const [sectionKey, pattern] of Object.entries(sectionPatterns)) {
-      if (pattern.test(line)) {
+      if (pattern.test(trimmedLine)) {
         // Save previous section content
         if (currentSection && sectionContent.length > 0) {
           if (currentSection === 'workExperience' || currentSection === 'education') {
             sections[currentSection].push(sectionContent.join('\n'))
           } else {
-            sections[currentSection] = sectionContent.join('\n').trim()
+            const content = sectionContent.join('\n').trim()
+            if (content.length > 0) {
+              sections[currentSection] = content
+            }
           }
         }
         // Start new section
         currentSection = sectionKey
+        matchedSectionKey = sectionKey
         sectionContent = []
         isSectionHeader = true
         break
@@ -176,22 +198,39 @@ function extractSections(lines) {
 
     if (!isSectionHeader) {
       if (currentSection) {
-        sectionContent.push(line)
-      } else {
-        // Check if this might be personal statement content before any section header
-        // (e.g., content right after contact info)
-        // Check if line is NOT a section header by testing against patterns
-        const isNotASectionHeader = !Object.values(sectionPatterns).some(pattern => pattern.test(line))
-        if (i < headerEndIndex + 10 && line.length > 20 && isNotASectionHeader) {
-          // This might be personal statement content
-          if (!sections.personalStatement) {
-            sections.personalStatement = line
-          } else {
-            sections.personalStatement += ' ' + line
+        // We're in a section, add content
+        // For personal statement, collect all lines until next section header
+        // Include blank lines to preserve paragraph structure
+        if (currentSection === 'personalStatement') {
+          // Only skip if it's a clear divider, otherwise include it (even if blank)
+          if (!/^[⸻\-_=]+$/.test(trimmedLine)) {
+            // Preserve original line to maintain formatting
+            sectionContent.push(originalLine)
           }
         } else {
-          // Unidentified section
-          sections.other.push(line)
+          // For other sections, only add non-blank lines
+          if (trimmedLine) {
+            sectionContent.push(originalLine)
+          }
+        }
+      } else {
+        // No current section - check if this might be personal statement content
+        // (e.g., content right after contact info, before first section header)
+        const isNotASectionHeader = !Object.values(sectionPatterns).some(pattern => pattern.test(trimmedLine))
+        const isNotADivider = !/^[⸻\-_=]+$/.test(trimmedLine)
+        const isSubstantialText = trimmedLine.length > 10 && !isDate(trimmedLine)
+        
+        // More lenient: accept any substantial text before first section header
+        if (i < headerEndIndex + 20 && isSubstantialText && isNotASectionHeader && isNotADivider) {
+          // This might be personal statement content
+          if (!sections.personalStatement) {
+            sections.personalStatement = trimmedLine
+          } else {
+            sections.personalStatement += ' ' + trimmedLine
+          }
+        } else if (trimmedLine) {
+          // Unidentified section (only if not blank)
+          sections.other.push(originalLine)
         }
       }
     }
@@ -225,8 +264,19 @@ function extractWorkExperience(workExpSections) {
   const experiences = []
 
   workExpSections.forEach(section => {
-    // Split section into lines
-    const allLines = section.split('\n').map(line => line.trim()).filter(line => line)
+    // Split section into lines - preserve original for bullet detection
+    const originalLines = section.split('\n')
+    // Create mapping: index -> original line (to handle duplicates)
+    const allLines = []
+    const originalLineByIndex = []
+    
+    originalLines.forEach((origLine, origIndex) => {
+      const trimmed = origLine.trim()
+      if (trimmed) {
+        allLines.push(trimmed)
+        originalLineByIndex.push(origLine) // Preserve original with whitespace
+      }
+    })
     
     let currentExp = null
     let currentBullets = []
@@ -234,9 +284,17 @@ function extractWorkExperience(workExpSections) {
 
     while (i < allLines.length) {
       const line = allLines[i]
+      // Get original line (with spaces) for bullet detection
+      const originalLine = originalLineByIndex[i] || line
       
       // Check if this line is a bullet point
-      const isBullet = /^[•\-\*▪▫◦‣⁃\t]|\d+[\.\)]/.test(line)
+      // Support bullets at start OR with leading spaces (common in resumes)
+      // Also support numbered bullets and tab-indented bullets
+      const trimmedForBulletCheck = line.trim()
+      const isBullet = /^[•\-\*▪▫◦‣⁃]|\d+[\.\)]/.test(trimmedForBulletCheck) ||
+                   /^\s{1,8}[•\-\*▪▫◦‣⁃]/.test(originalLine) || // Bullet with 1-8 leading spaces
+                   /^\s{1,8}\d+[\.\)]/.test(originalLine) || // Numbered with leading spaces
+                   originalLine.startsWith('\t') // Tab-indented
       
       // Check if this line looks like a company name
       // Company names are usually:
@@ -359,16 +417,49 @@ function extractWorkExperience(workExpSections) {
           bullets: []
         }
         currentBullets = []
-      } else if (isBullet && currentExp) {
-        // This is a bullet point for current experience
-        const bulletText = line.replace(/^[•\-\*▪▫◦‣⁃\d+\.\)]\s*/, '').trim()
-        if (bulletText) {
-          currentBullets.push(bulletText)
+      } else if (isBullet) {
+        // This is a bullet point
+        if (currentExp) {
+          // Remove bullet marker and leading whitespace
+          const bulletText = originalLine
+            .replace(/^\s*[•\-\*▪▫◦‣⁃]\s*/, '') // Remove bullet char with surrounding spaces
+            .replace(/^\s*\d+[\.\)]\s*/, '') // Remove numbered bullet
+            .replace(/^\t+/, '') // Remove leading tabs
+            .trim()
+          
+          if (bulletText && bulletText.length > 0) {
+            currentBullets.push(bulletText)
+          }
+        } else {
+          // Bullet found but no currentExp - might be continuation of previous exp
+          // Try to attach to last experience if it exists
+          if (experiences.length > 0) {
+            const lastExp = experiences[experiences.length - 1]
+            const bulletText = originalLine
+              .replace(/^\s*[•\-\*▪▫◦‣⁃]\s*/, '')
+              .replace(/^\s*\d+[\.\)]\s*/, '')
+              .replace(/^\t+/, '')
+              .trim()
+            
+            if (bulletText && bulletText.length > 0) {
+              if (!lastExp.bullets) {
+                lastExp.bullets = []
+              }
+              lastExp.bullets.push(bulletText)
+            }
+          }
         }
       } else if (currentExp && !isBullet && line.length > 0) {
-        // Might be continuation of title or additional info
-        // If current title is empty, this might be the title
-        if (!currentExp.title) {
+        // Check if this might be a bullet without explicit marker (indented line)
+        const isIndentedBullet = /^\s{2,8}/.test(originalLine) && line.length < 150 && 
+                                 !isDate(line) && 
+                                 !isSectionHeader(line)
+        
+        if (isIndentedBullet) {
+          // Treat indented lines as bullets if we're in an experience entry
+          currentBullets.push(line)
+        } else if (!currentExp.title) {
+          // If current title is empty, this might be the title
           currentExp.title = line
         }
       }
