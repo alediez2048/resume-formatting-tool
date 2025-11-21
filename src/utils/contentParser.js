@@ -496,8 +496,14 @@ function extractWorkExperience(workExpSections) {
         continue
       }
       
-      // Check if this is a new company (standard format)
-      if ((isLikelyCompany && (looksLikeNewCompany || isNewCompanyAfterBullets)) || (isLikelyCompany && currentExp === null)) {
+      // Also check if current line is a dash format company-title (even if we're processing bullets)
+      // This helps detect new companies that appear after bullets
+      const isDashFormatCompany = dashFormat && detectedCompany && 
+                                   currentExp && 
+                                   detectedCompany !== currentExp.company
+      
+      // Check if this is a new company (standard format or dash format)
+      if (isDashFormatCompany || (isLikelyCompany && (looksLikeNewCompany || isNewCompanyAfterBullets)) || (isLikelyCompany && currentExp === null)) {
         // Save previous experience if exists
         if (currentExp) {
           currentExp.bullets = currentBullets
