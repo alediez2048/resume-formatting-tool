@@ -1,5 +1,7 @@
 # Resume Formatting Tool
 
+🌐 **Live Demo:** [https://alediez2048.github.io/resume-formatting-tool/](https://alediez2048.github.io/resume-formatting-tool/)
+
 A local, offline tool for formatting and exporting resumes to perfectly formatted PDFs. No accounts, no cloud, no hosting—just paste your content and get a professional PDF instantly.
 
 ## Features
