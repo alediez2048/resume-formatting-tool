@@ -354,6 +354,10 @@ function extractWorkExperience(workExpSections) {
       // Check for common resume formats first
       // Format 1: "Job Title | Company | Date" or "Company | Job Title | Date"
       const pipeFormat = line.includes('|')
+      // Format 2: "Company - Job Title" or "Job Title - Company" (dash separator)
+      const dashFormat = line.includes(' - ') && !isDate(line)
+      // Format 3: "Company | Job Title | Date"
+      
       let detectedCompany = null
       let detectedTitle = null
       let detectedDate = null
@@ -379,6 +383,37 @@ function extractWorkExperience(workExpSections) {
             detectedTitle = parts[0]
             detectedCompany = parts[1]
             detectedDate = parts[2] || detectedDate
+          }
+        }
+      } else if (dashFormat) {
+        // Handle "Company - Job Title" or "Job Title - Company" format
+        const parts = line.split(/\s+-\s+/).map(p => p.trim()).filter(p => p)
+        if (parts.length >= 2) {
+          // Heuristic: Company names are usually shorter and don't contain common job title words
+          const jobTitleWords = /engineer|manager|director|analyst|developer|designer|strategist|producer|specialist|coordinator|lead|senior|junior/i
+          
+          const firstPart = parts[0]
+          const secondPart = parts[1]
+          
+          // Check if first part looks like a company (shorter, no job title words)
+          // or second part looks like a company
+          if (jobTitleWords.test(firstPart) && !jobTitleWords.test(secondPart)) {
+            // "Job Title - Company" format
+            detectedTitle = firstPart
+            detectedCompany = secondPart
+          } else if (!jobTitleWords.test(firstPart) && jobTitleWords.test(secondPart)) {
+            // "Company - Job Title" format
+            detectedCompany = firstPart
+            detectedTitle = secondPart
+          } else {
+            // Ambiguous - use length heuristic (company usually shorter)
+            if (firstPart.length < secondPart.length) {
+              detectedCompany = firstPart
+              detectedTitle = secondPart
+            } else {
+              detectedTitle = firstPart
+              detectedCompany = secondPart
+            }
           }
         }
       }
@@ -437,8 +472,8 @@ function extractWorkExperience(workExpSections) {
         isNewCompanyAfterBullets = hasTitle && hasDate
       }
 
-      // Handle pipe format (Job Title | Company | Date)
-      if (pipeFormat && detectedCompany) {
+      // Handle pipe format (Job Title | Company | Date) or dash format (Company - Job Title)
+      if ((pipeFormat || dashFormat) && detectedCompany) {
         // Save previous experience if exists
         if (currentExp) {
           currentExp.bullets = currentBullets
@@ -446,7 +481,7 @@ function extractWorkExperience(workExpSections) {
           console.log(`💾 Saved experience: ${currentExp.company} - ${currentExp.title} (${currentBullets.length} bullets)`)
         }
         
-        // Start new experience from pipe format
+        // Start new experience from pipe or dash format
         currentExp = {
           company: detectedCompany,
           title: detectedTitle || '',
@@ -455,7 +490,8 @@ function extractWorkExperience(workExpSections) {
           bullets: []
         }
         currentBullets = []
-        console.log(`✅ Detected new experience (pipe format): ${detectedCompany} - ${detectedTitle || 'No title'}`)
+        const formatType = pipeFormat ? 'pipe' : 'dash'
+        console.log(`✅ Detected new experience (${formatType} format): Company="${detectedCompany}", Title="${detectedTitle || 'No title'}", Date="${detectedDate || 'No date'}"`)
         i++
         continue
       }
