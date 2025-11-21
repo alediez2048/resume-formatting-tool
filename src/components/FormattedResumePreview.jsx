@@ -13,11 +13,28 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false)
   const [adjustedStyling, setAdjustedStyling] = useState(null)
 
-  // Automatically optimize for one page when styledContent changes
+  // Initialize with styledContent immediately when component mounts or content changes
   useEffect(() => {
     if (styledContent && referenceTemplate) {
+      console.log('📝 Initializing preview with styledContent')
+      // Set optimized content immediately so preview can generate
+      setOptimizedContent(styledContent)
+      
+      // Adjust font sizes immediately for preview
+      if (referenceTemplate?.stylingSpecs) {
+        const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs)
+        setAdjustedStyling(adjusted)
+      }
+    }
+  }, [styledContent, referenceTemplate])
+
+  // Automatically optimize for one page in background (non-blocking)
+  useEffect(() => {
+    if (styledContent && referenceTemplate && optimizedContent) {
+      // Run optimization in background - this will update optimizedContent when done
       autoOptimizeForOnePage()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styledContent, referenceTemplate])
 
   const autoOptimizeForOnePage = async () => {
@@ -29,11 +46,8 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
       // Just adjust font sizes to fit one page
       const result = await ensureOnePage(styledContent, referenceTemplate, openAIApiKey)
       
-      if (result.success) {
+      if (result.success && result.optimizedContent) {
         setOptimizedContent(result.optimizedContent) // This is the original content, unchanged
-      } else {
-        // Fallback: use original content
-        setOptimizedContent(styledContent)
       }
       
       // Adjust font sizes (reduce by ~15%) and spacing to fit one page
@@ -42,8 +56,7 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
       setAdjustedStyling(adjusted)
     } catch (error) {
       console.error('Error auto-optimizing:', error)
-      // Use original content with adjusted font sizes
-      setOptimizedContent(styledContent)
+      // Keep using original content, just adjust font sizes
       const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs)
       setAdjustedStyling(adjusted)
     } finally {
@@ -51,8 +64,10 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
     }
   }
 
+  // Generate preview when optimizedContent or referenceTemplate changes
   useEffect(() => {
     if (optimizedContent && referenceTemplate) {
+      console.log('🔄 Generating preview...')
       generatePreview()
     }
   }, [optimizedContent, referenceTemplate])

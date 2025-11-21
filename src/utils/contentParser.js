@@ -1,21 +1,204 @@
 /**
  * Content Parser
  * Parses new resume text content and extracts structured data
+ * Now includes AI-powered parsing using OpenAI for improved reliability
  */
 
 /**
- * Parse new resume content text into structured format
+ * AI-powered resume parsing using OpenAI
+ * This provides more reliable extraction, especially for bullet points
  * @param {string} resumeText - Raw resume text
- * @returns {Object} Parsed resume content
+ * @param {string} openAIApiKey - OpenAI API key
+ * @returns {Promise<Object>} Parsed resume content
  */
-export function parseResumeContent(resumeText) {
+export async function parseResumeContentWithAI(resumeText, openAIApiKey) {
+  if (!openAIApiKey || !openAIApiKey.trim()) {
+    throw new Error('OpenAI API key is required for AI-powered parsing')
+  }
+
+  try {
+    console.log('🤖 Using AI-powered parsing for resume content')
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openAIApiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert resume parser. Extract structured data from resume text and return it as valid JSON. 
+            Pay special attention to:
+            1. Bullet points - extract ALL bullet points for each work experience entry, even if they're formatted differently
+            2. Work experience entries - correctly identify company, job title, dates, location, and ALL associated bullet points
+            3. Contact information - extract name, email, phone, location, website
+            4. Personal statement/summary - extract the full professional summary
+            5. Education - extract school, degree, date, GPA, certificates
+            6. Skills - extract all skills, preserving categories if present
+            
+            Return a JSON object with this exact structure:
+            {
+              "contactInfo": {
+                "name": "string",
+                "email": "string",
+                "phone": "string",
+                "location": "string",
+                "website": "string"
+              },
+              "personalStatement": "string or null",
+              "workExperience": [
+                {
+                  "company": "string",
+                  "title": "string",
+                  "date": "string",
+                  "location": "string",
+                  "bullets": ["string", "string", ...]
+                }
+              ],
+              "education": [
+                {
+                  "school": "string",
+                  "degree": "string",
+                  "date": "string",
+                  "gpa": "string",
+                  "certificate": "string or null"
+                }
+              ],
+              "skills": "string"
+            }
+            
+            IMPORTANT: 
+            - Extract ALL bullet points for each work experience, even if they use different formatting (•, -, *, numbers, tabs, spaces)
+            - Preserve the exact text of bullet points
+            - If a work experience has no bullets, use an empty array []
+            - Return null for optional fields that are not present
+            - Return skills as a single string (comma-separated or formatted as provided)`
+          },
+          {
+            role: 'user',
+            content: `Parse this resume text and extract all structured data, especially making sure to capture ALL bullet points for each work experience entry:\n\n${resumeText}`
+          }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.1, // Low temperature for consistent parsing
+        max_tokens: 4000
+      })
+    })
+
+    if (!response.ok) {
+      let errorMessage = `OpenAI API error: ${response.status} ${response.statusText}`
+      try {
+        const errorData = await response.json()
+        if (errorData.error) {
+          errorMessage = `OpenAI API error: ${errorData.error.message || errorData.error.code || 'Unknown error'}`
+        }
+      } catch (e) {
+        console.error('Error parsing OpenAI error response:', e)
+      }
+      throw new Error(errorMessage)
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
+    
+    if (!content) {
+      throw new Error('OpenAI API returned empty response')
+    }
+
+    // Parse the JSON response
+    let parsedData
+    try {
+      parsedData = JSON.parse(content)
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI JSON response:', parseError)
+      console.error('Raw response:', content)
+      throw new Error('AI parsing returned invalid JSON format')
+    }
+
+    // Validate and normalize the response
+    const result = {
+      success: true,
+      contactInfo: parsedData.contactInfo || {
+        name: null,
+        email: null,
+        phone: null,
+        location: null,
+        website: null
+      },
+      personalStatement: parsedData.personalStatement || null,
+      workExperience: Array.isArray(parsedData.workExperience) 
+        ? parsedData.workExperience.map(exp => ({
+            company: exp.company || '',
+            title: exp.title || '',
+            date: exp.date || '',
+            location: exp.location || '',
+            bullets: Array.isArray(exp.bullets) ? exp.bullets.filter(b => b && b.trim()) : []
+          }))
+        : [],
+      education: Array.isArray(parsedData.education)
+        ? parsedData.education.map(edu => ({
+            school: edu.school || '',
+            degree: edu.degree || '',
+            date: edu.date || '',
+            gpa: edu.gpa || '',
+            certificate: edu.certificate || null
+          }))
+        : [],
+      skills: parsedData.skills || '',
+      rawText: resumeText
+    }
+
+    console.log('✅ AI parsing complete:', {
+      personalStatement: result.personalStatement ? `✅ (${result.personalStatement.length} chars)` : '❌',
+      workExperienceCount: result.workExperience.length,
+      totalBullets: result.workExperience.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0),
+      skills: result.skills ? '✅' : '❌',
+      educationCount: result.education.length
+    })
+
+    return result
+  } catch (error) {
+    console.error('AI-powered parsing error:', error)
+    throw error
+  }
+}
+
+/**
+ * Parse new resume content text into structured format
+ * Uses AI-powered parsing if OpenAI key is provided, otherwise falls back to rule-based parsing
+ * @param {string} resumeText - Raw resume text
+ * @param {string} openAIApiKey - Optional OpenAI API key for AI-powered parsing
+ * @returns {Promise<Object>|Object} Parsed resume content
+ */
+export async function parseResumeContent(resumeText, openAIApiKey = null) {
   console.log('🚀 parseResumeContent called with text length:', resumeText?.length || 0)
   console.log('📝 First 200 chars of input:', resumeText?.substring(0, 200) || 'EMPTY')
+  console.log('🔑 OpenAI API key provided:', !!openAIApiKey)
   
   try {
     if (!resumeText || !resumeText.trim()) {
       console.error('❌ Resume text is empty!')
       return { error: 'Resume text is empty' }
+    }
+
+    // Try AI-powered parsing first if API key is provided
+    if (openAIApiKey && openAIApiKey.trim()) {
+      try {
+        console.log('🤖 Attempting AI-powered parsing...')
+        const aiResult = await parseResumeContentWithAI(resumeText, openAIApiKey)
+        if (aiResult && aiResult.success) {
+          console.log('✅ AI parsing succeeded, using AI results')
+          return aiResult
+        }
+      } catch (aiError) {
+        console.warn('⚠️ AI parsing failed, falling back to rule-based parsing:', aiError.message)
+        // Continue to rule-based parsing below
+      }
+    } else {
+      console.log('ℹ️ No OpenAI API key provided, using rule-based parsing')
     }
 
     // CRITICAL FIX: Preserve original lines with whitespace for proper parsing

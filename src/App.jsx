@@ -132,7 +132,11 @@ function App() {
 
   const handleParseContent = async (resumeText) => {
     try {
-      const parsed = parseResumeContent(resumeText)
+      // Get OpenAI API key for AI-powered parsing
+      const openAIApiKey = localStorage.getItem('openai_api_key') || ''
+      
+      // parseResumeContent is now async and accepts OpenAI API key
+      const parsed = await parseResumeContent(resumeText, openAIApiKey)
       if (parsed.error) {
         alert(`Error parsing resume: ${parsed.error}`)
         return
@@ -141,7 +145,7 @@ function App() {
       setCurrentView('parsed-content-review')
     } catch (error) {
       console.error('Error parsing resume content:', error)
-      alert('Error parsing resume content. Please check the console.')
+      alert(`Error parsing resume content: ${error.message || 'Please check the console.'}`)
     }
   }
 
