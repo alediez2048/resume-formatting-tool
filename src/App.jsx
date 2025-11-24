@@ -5,16 +5,19 @@ import TemplateReview from './components/TemplateReview'
 import NewResumeInput from './components/NewResumeInput'
 import ParsedContentReview from './components/ParsedContentReview'
 import FormattedResumePreview from './components/FormattedResumePreview'
+import CoverLetterInput from './components/CoverLetter/CoverLetterInput'
+import CoverLetterPreview from './components/CoverLetter/CoverLetterPreview'
 import { generatePDF } from './utils/pdfGenerator'
 import { parsePDF } from './utils/pdfParser'
 import { parseResumeContent } from './utils/contentParser'
 import { applyStylingWithAI } from './utils/styleMatcher'
 import { extractStylingSpecs, createReferenceTemplate } from './utils/stylingExtractor'
 import { loadTemplate } from './utils/templateStorage'
+import { generateCoverLetter } from './utils/coverLetterGenerator'
 import './App.css'
 
 function App() {
-  // App view state: 'landing' | 'reference-setup' | 'reference-review' | 'formatting' | 'parsed-content-review' | 'formatted-preview'
+  // App view state: 'landing' | 'reference-setup' | 'reference-review' | 'formatting' | 'parsed-content-review' | 'formatted-preview' | 'cover-letter-input' | 'cover-letter-preview'
   const [currentView, setCurrentView] = useState('landing')
   const [referenceTemplate, setReferenceTemplate] = useState(null)
   const [analyzedTemplate, setAnalyzedTemplate] = useState(null)
@@ -22,6 +25,10 @@ function App() {
   const [styledContent, setStyledContent] = useState(null)
   const [isApplyingStyling, setIsApplyingStyling] = useState(false)
   
+  // Cover Letter State
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false)
+  const [coverLetterData, setCoverLetterData] = useState(null)
+
   const [resumeData, setResumeData] = useState({
     name: '',
     email: '',
@@ -39,7 +46,8 @@ function App() {
     const savedTemplate = loadTemplate()
     if (savedTemplate) {
       setReferenceTemplate(savedTemplate)
-      setCurrentView('formatting')
+      // Stay on landing, user can choose what to do
+      setCurrentView('landing')
     } else {
       setCurrentView('landing')
     }
@@ -130,6 +138,10 @@ function App() {
     }
   }
 
+  const handleStartCoverLetter = () => {
+    setCurrentView('cover-letter-input')
+  }
+
   const handleParseContent = async (resumeText) => {
     try {
       // Get OpenAI API key for AI-powered parsing
@@ -202,6 +214,37 @@ function App() {
     setCurrentView('formatting')
   }
 
+  const handleGenerateCoverLetter = async (inputData) => {
+    const openAIApiKey = localStorage.getItem('openai_api_key')
+    if (!openAIApiKey) {
+      alert('OpenAI API key is required. Please configure it first.')
+      return
+    }
+
+    setIsGeneratingCoverLetter(true)
+    try {
+      const result = await generateCoverLetter({
+        resume: inputData.resumeText,
+        jobDescription: inputData.jobDescription,
+        companyDetails: inputData.companyDetails,
+        apiKey: openAIApiKey
+      })
+
+      setCoverLetterData({
+        ...result,
+        companyDetails: inputData.companyDetails,
+        candidateName: result.extractedCandidateName, // Fallbacks if needed handled in component
+        candidateContact: result.extractedCandidateContact
+      })
+      setCurrentView('cover-letter-preview')
+    } catch (error) {
+      console.error('Error generating cover letter:', error)
+      alert('Failed to generate cover letter. Please check your API key and try again.')
+    } finally {
+      setIsGeneratingCoverLetter(false)
+    }
+  }
+
   // Landing page
   if (currentView === 'landing') {
     return (
@@ -222,12 +265,21 @@ function App() {
               
               <div className="landing-actions">
                 {!referenceTemplate ? (
-                  <button 
-                    className="landing-button primary"
-                    onClick={handleStartReferenceSetup}
-                  >
-                    Set Up Reference Resume
-                  </button>
+                  <div className="landing-buttons-container">
+                    <button 
+                      className="landing-button primary"
+                      onClick={handleStartReferenceSetup}
+                    >
+                      Set Up Reference Resume
+                    </button>
+                    <button 
+                      className="landing-button secondary"
+                      onClick={handleStartCoverLetter}
+                      style={{ marginLeft: '1rem', backgroundColor: '#2b6cb0', color: 'white' }}
+                    >
+                      Create Cover Letter
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <div className="template-status">
@@ -243,7 +295,15 @@ function App() {
                       </button>
                       <button 
                         className="landing-button secondary"
+                        onClick={handleStartCoverLetter}
+                        style={{ marginLeft: '1rem', backgroundColor: '#2b6cb0', color: 'white' }}
+                      >
+                        Create Cover Letter
+                      </button>
+                      <button 
+                        className="landing-button outline"
                         onClick={handleStartReferenceSetup}
+                        style={{ marginLeft: '1rem' }}
                       >
                         Update Reference
                       </button>
@@ -384,10 +444,45 @@ function App() {
     )
   }
 
+  // Cover Letter Input View
+  if (currentView === 'cover-letter-input') {
+    const openAIApiKey = localStorage.getItem('openai_api_key')
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1>Cover Letter Generator</h1>
+          <p>Create a custom tailored cover letter</p>
+        </header>
+        <main className="app-main">
+          <div className="view-controls" style={{ marginBottom: '1rem' }}>
+            <button className="view-button" onClick={() => setCurrentView('landing')}>
+              ← Back to Home
+            </button>
+          </div>
+          <CoverLetterInput 
+            onGenerate={handleGenerateCoverLetter} 
+            isGenerating={isGeneratingCoverLetter}
+            openAIApiKey={openAIApiKey}
+          />
+        </main>
+      </div>
+    )
+  }
+
+  // Cover Letter Preview View
+  if (currentView === 'cover-letter-preview') {
+    return (
+      <div className="app">
+        <CoverLetterPreview 
+          generatedData={coverLetterData}
+          onBack={() => setCurrentView('cover-letter-input')}
+        />
+      </div>
+    )
+  }
+
   // Fallback (should not reach here)
   return null
 }
 
 export default App
-
-
