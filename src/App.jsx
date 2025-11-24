@@ -102,8 +102,8 @@ function App() {
   const handleConfirmTemplate = (template) => {
     setReferenceTemplate(template)
     setAnalyzedTemplate(null)
-    setCurrentView('formatting')
-    alert('Reference template saved successfully! You can now format new resumes.')
+    setCurrentView('landing')
+    alert('Reference template saved successfully! You can now format new resumes or create a cover letter.')
   }
 
   const handleCancelTemplate = () => {
