@@ -24,6 +24,7 @@ function App() {
   const [parsedContent, setParsedContent] = useState(null)
   const [styledContent, setStyledContent] = useState(null)
   const [isApplyingStyling, setIsApplyingStyling] = useState(false)
+  const [targetJobDetails, setTargetJobDetails] = useState(null) // Store target job details for filename
   
   // Cover Letter State
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false)
@@ -132,6 +133,7 @@ function App() {
     if (referenceTemplate) {
       setCurrentView('formatting')
       setParsedContent(null) // Reset parsed content
+      setTargetJobDetails(null) // Reset job details
     } else {
       alert('Please set up a reference resume first')
       setCurrentView('reference-setup')
@@ -142,8 +144,13 @@ function App() {
     setCurrentView('cover-letter-input')
   }
 
-  const handleParseContent = async (resumeText) => {
+  const handleParseContent = async (resumeText, jobDetails) => {
     try {
+      // Store job details if provided
+      if (jobDetails) {
+        setTargetJobDetails(jobDetails)
+      }
+
       // Get OpenAI API key for AI-powered parsing
       const openAIApiKey = localStorage.getItem('openai_api_key') || ''
       
@@ -433,6 +440,7 @@ function App() {
               referenceTemplate={referenceTemplate}
               openAIApiKey={openAIApiKey}
               onBack={() => setCurrentView('parsed-content-review')}
+              targetJobDetails={targetJobDetails}
             />
           ) : (
             <div style={{ padding: '2rem', textAlign: 'center' }}>

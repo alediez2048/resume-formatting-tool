@@ -3,6 +3,7 @@ import './NewResumeInput.css'
 
 const NewResumeInput = ({ onParse }) => {
   const [resumeText, setResumeText] = useState('')
+  const [jobDetails, setJobDetails] = useState({ companyName: '', jobTitle: '' })
   const [isParsing, setIsParsing] = useState(false)
 
   const handleSubmit = async () => {
@@ -13,7 +14,7 @@ const NewResumeInput = ({ onParse }) => {
 
     setIsParsing(true)
     try {
-      await onParse(resumeText)
+      await onParse(resumeText, jobDetails)
     } catch (error) {
       console.error('Error parsing resume:', error)
       alert('Error parsing resume. Please check the console.')
@@ -24,6 +25,7 @@ const NewResumeInput = ({ onParse }) => {
 
   const handleClear = () => {
     setResumeText('')
+    setJobDetails({ companyName: '', jobTitle: '' })
   }
 
   return (
@@ -31,9 +33,31 @@ const NewResumeInput = ({ onParse }) => {
       <div className="input-header">
         <h2>Paste Your New Resume Content</h2>
         <p className="instruction-text">
-          Paste your new resume text below. The system will identify sections (name, contact, 
-          work experience, skills, education, etc.) and format them to match your reference resume's styling.
+          Paste your new resume text below. Also provide the target Company and Job Title to customize the file name.
         </p>
+      </div>
+
+      <div className="job-details-section" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem' }}>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4a5568', fontWeight: '500' }}>Target Company Name</label>
+          <input
+            type="text"
+            value={jobDetails.companyName}
+            onChange={(e) => setJobDetails(prev => ({ ...prev, companyName: e.target.value }))}
+            placeholder="e.g. Rippling"
+            style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: '#4a5568', fontWeight: '500' }}>Job Title</label>
+          <input
+            type="text"
+            value={jobDetails.jobTitle}
+            onChange={(e) => setJobDetails(prev => ({ ...prev, jobTitle: e.target.value }))}
+            placeholder="e.g. AI Search Manager"
+            style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px' }}
+          />
+        </div>
       </div>
 
       <div className="textarea-container">
@@ -41,34 +65,7 @@ const NewResumeInput = ({ onParse }) => {
           className="resume-textarea"
           value={resumeText}
           onChange={(e) => setResumeText(e.target.value)}
-          placeholder="Paste your resume content here...
-
-Example:
-John Doe
-john.doe@email.com | +1 (555) 123-4567 | San Francisco, CA
-www.johndoe.com
-
-PERSONAL STATEMENT
-Experienced software engineer with 5+ years of experience...
-
-WORK EXPERIENCE
-Senior Software Engineer
-Company Name | 2020 - Present
-• Led development of...
-• Implemented...
-• Achieved...
-
-Software Engineer
-Previous Company | 2018 - 2020
-• Developed...
-• Collaborated...
-
-SKILLS
-JavaScript, React, Node.js, Python, AWS, Docker
-
-EDUCATION
-Bachelor of Science in Computer Science
-University Name | 2015 - 2019"
+          placeholder="Paste your resume content here..."
           rows={25}
         />
         <div className="textarea-footer">
@@ -97,4 +94,3 @@ University Name | 2015 - 2019"
 }
 
 export default NewResumeInput
-

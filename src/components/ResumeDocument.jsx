@@ -59,6 +59,7 @@ function createDynamicStyles(stylingSpecs) {
       marginBottom: layout.sectionSpacing || 6, // Use adjusted spacing
       borderBottom: colors.accent ? `2px solid ${colors.accent}` : '2px solid #667eea',
       paddingBottom: 8, // Reduced for one-page fit
+      alignItems: 'center', // Center content horizontally
     },
     name: {
       fontSize: fonts.name?.size || 24,
@@ -70,10 +71,12 @@ function createDynamicStyles(stylingSpecs) {
       letterSpacing: 0.5, // Use reference letter spacing
       textTransform: transforms.name === 'uppercase' ? 'uppercase' : 
                      transforms.name === 'lowercase' ? 'lowercase' : 'none',
+      textAlign: 'center',
     },
     contactInfo: {
       flexDirection: 'row',
       flexWrap: 'wrap',
+      justifyContent: 'center', // Center contact items
       gap: 12,
       fontSize: fonts.contact?.size || 10,
       fontWeight: fonts.contact?.weight === 'bold' ? 'bold' : 'normal',

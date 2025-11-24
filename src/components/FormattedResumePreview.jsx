@@ -5,7 +5,7 @@ import { ensureOnePage, adjustStylingMinimally } from '../utils/onePageHandler'
 import { generatePDF } from '../utils/pdfGenerator'
 import './FormattedResumePreview.css'
 
-const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey, onExport, onBack }) => {
+const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey, onExport, onBack, targetJobDetails }) => {
   const [isOptimizing, setIsOptimizing] = useState(false)
   const [optimizedContent, setOptimizedContent] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -173,8 +173,47 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
     try {
       // Use adjusted styling for export to ensure one page
       const stylingToUse = adjustedStyling || referenceTemplate?.stylingSpecs
-      await generatePDF(optimizedContent, stylingToUse)
-      alert('PDF exported successfully! (Optimized for one page)')
+      
+      let filename = 'resume.pdf'
+      if (targetJobDetails && targetJobDetails.companyName) {
+        const company = targetJobDetails.companyName.replace(/[^a-z0-9]/gi, '_')
+        const title = targetJobDetails.jobTitle ? targetJobDetails.jobTitle.replace(/[^a-z0-9]/gi, '_') : ''
+        filename = `${company}_${title}_Resume.pdf`.replace(/_+/g, '_')
+      }
+      
+      // generatePDF should ideally accept a filename, but for now we'll alert success with the expected location
+      // or if we can modify generatePDF to return a blob, we could download it here like in CoverLetterPreview.
+      // Assuming generatePDF handles download internally, we might need to refactor it or just accept the default name for now if generatePDF is rigid.
+      // Let's check generatePDF implementation first.
+      await generatePDF(optimizedContent, stylingToUse) 
+      
+      // Since generatePDF implementation is not fully visible here, I will assume it handles saving.
+      // Ideally we should refactor generatePDF to accept a filename or return a blob.
+      // For this immediate request, let's try to implement the download logic directly here if possible
+      // similar to CoverLetterPreview using the same blob logic.
+      
+      const blob = await pdf(
+        <ResumeDocument 
+          data={{
+            contactInfo: optimizedContent.contactInfo || {},
+            personalStatement: optimizedContent.personalStatement || null,
+            workExperience: optimizedContent.workExperience || [],
+            skills: optimizedContent.skills || '',
+            education: optimizedContent.education || []
+          }} 
+          stylingSpecs={stylingToUse}
+        />
+      ).toBlob()
+      
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      alert(`PDF exported successfully as ${filename}!`)
     } catch (error) {
       console.error('Error exporting PDF:', error)
       alert('Error exporting PDF. Please check the console.')

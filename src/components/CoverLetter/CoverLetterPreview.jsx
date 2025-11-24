@@ -60,11 +60,13 @@ const CoverLetterPreview = ({ generatedData, onBack }) => {
         content: editableContent
       }
       
+      const filename = `${generatedData.companyDetails.companyName.replace(/[^a-z0-9]/gi, '_')}_${generatedData.companyDetails.jobTitle.replace(/[^a-z0-9]/gi, '_')}_Cover_Letter.pdf`
+      
       const blob = await pdf(<CoverLetterDocument data={dataToRender} styling={styling} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `Cover_Letter_${generatedData.companyDetails.companyName}.pdf`
+      link.download = filename
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
