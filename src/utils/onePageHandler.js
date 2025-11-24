@@ -11,92 +11,9 @@
  * @returns {Promise<Object>} Optimized content that fits on one page
  */
 export async function ensureOnePage(styledContent, referenceTemplate, openAIApiKey) {
-  if (!openAIApiKey || !openAIApiKey.trim()) {
-    // Without API key, use programmatic optimization
-    return optimizeProgrammatically(styledContent, referenceTemplate)
-  }
-
-  try {
-    // Use AI to optimize content - PRESERVE original text, just condense
-    const prompt = `CRITICAL: Condense this resume to fit EXACTLY on ONE PAGE (A4: 8.5" x 11"). 
-
-IMPORTANT RULES:
-1. DO NOT rewrite or change the meaning of any content
-2. DO NOT add new information
-3. ONLY shorten/condense existing text
-4. Preserve all metrics, numbers, and achievements exactly
-5. Keep the same wording style, just make it more concise
-
-OPTIMIZATION STRATEGY:
-1. Reduce bullet points to 3-4 most important per job (remove least important, don't rewrite)
-2. Shorten personal statement by removing less critical phrases (keep core message)
-3. Condense skills to single line if categorized
-4. Keep all jobs - don't remove any
-5. Shorten bullet points by removing filler words, but keep exact metrics
-6. Preserve all company names, dates, titles exactly
-
-ORIGINAL CONTENT (PRESERVE MEANING, JUST CONDENSE):
-${JSON.stringify(styledContent, null, 2)}
-
-Return ONLY a JSON object with the SAME structure. Condense text but DO NOT rewrite. Keep all information, just make it shorter.`
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIApiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a resume condensing expert. Your ONLY job is to shorten text while preserving the EXACT original meaning and wording. DO NOT rewrite, rephrase, or change content. ONLY remove words to make it shorter. Preserve all metrics, numbers, company names, and achievements exactly as written.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.2, // Low temperature for consistent, focused optimization
-        max_tokens: 4000
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    const aiResponse = data.choices?.[0]?.message?.content
-
-    if (!aiResponse) {
-      return optimizeProgrammatically(styledContent, referenceTemplate)
-    }
-
-    // Parse optimized content
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      try {
-        const optimized = JSON.parse(jsonMatch[0])
-        return {
-          success: true,
-          optimizedContent: {
-            ...optimized,
-            styling: styledContent.styling || referenceTemplate.stylingSpecs // Preserve styling
-          }
-        }
-      } catch (parseError) {
-        console.warn('Failed to parse AI optimization, using programmatic fallback:', parseError)
-        return optimizeProgrammatically(styledContent, referenceTemplate)
-      }
-    }
-
-    return optimizeProgrammatically(styledContent, referenceTemplate)
-  } catch (error) {
-    console.error('Error optimizing with AI, using programmatic fallback:', error)
-    return optimizeProgrammatically(styledContent, referenceTemplate)
-  }
+  // Skip AI condensation entirely - just return original content
+  // Font scaling will be handled by adjustStylingMinimally in the UI component
+  return optimizeProgrammatically(styledContent, referenceTemplate)
 }
 
 /**

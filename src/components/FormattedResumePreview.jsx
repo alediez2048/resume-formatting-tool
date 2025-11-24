@@ -190,7 +190,7 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
         </p>
         {isOptimizing && (
           <p className="optimizing-note" style={{ color: '#667eea', fontWeight: '600', marginTop: '0.5rem' }}>
-            ⚙️ Automatically optimizing content to fit one page...
+            ⚙️ Automatically adjusting fonts to fit one page...
           </p>
         )}
       </div>
