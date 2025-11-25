@@ -29,6 +29,66 @@ function optimizeProgrammatically(styledContent, referenceTemplate) {
 }
 
 /**
+ * Returns a dedicated 'Compact' preset guaranteed to save space.
+ * Uses absolute values known to be efficient, rather than relative reduction.
+ */
+export function getCompactLayoutPreset(baseStyling) {
+    // Start with a deep copy to preserve colors/fonts/styles
+    const preset = JSON.parse(JSON.stringify(baseStyling));
+
+    // 1. Strict Margins: 0.4 inch (approx 28pt)
+    // This is aggressive but professional.
+    preset.layout = preset.layout || {};
+    preset.layout.margins = {
+        top: 28,
+        bottom: 28,
+        left: 28,
+        right: 28
+    };
+
+    // 2. Minimal Vertical Spacing
+    preset.layout.sectionSpacing = 6; // Very tight between sections
+    preset.layout.paragraphSpacing = 4; // Tight between items
+
+    // 3. Compact Fonts
+    preset.fonts = preset.fonts || {};
+    
+    // Name: Large enough to be prominent, but not huge
+    if (!preset.fonts.name) preset.fonts.name = {};
+    preset.fonts.name.size = 18; 
+    
+    // Section Titles: Distinct but compact
+    if (!preset.fonts.sectionTitle) preset.fonts.sectionTitle = {};
+    preset.fonts.sectionTitle.size = 11;
+
+    // Body Text: The critical part. 9pt is the standard "compact" size.
+    if (!preset.fonts.body) preset.fonts.body = {};
+    preset.fonts.body.size = 9;
+    preset.fonts.body.lineHeight = 1.15; // Tight line height
+
+    // Bullets: Match body or slightly smaller
+    if (!preset.fonts.bulletText) preset.fonts.bulletText = {};
+    preset.fonts.bulletText.size = 9;
+    
+    // Meta info (dates, locations): Smallest readable size
+    if (!preset.fonts.date) preset.fonts.date = {};
+    preset.fonts.date.size = 9;
+    
+    if (!preset.fonts.companyName) preset.fonts.companyName = {};
+    preset.fonts.companyName.size = 10; // Slightly larger than body
+    
+    if (!preset.fonts.roleTitle) preset.fonts.roleTitle = {};
+    preset.fonts.roleTitle.size = 9;
+
+    // 4. Bullet Spacing
+    preset.bullets = preset.bullets || {};
+    preset.bullets.lineSpacing = 1.15;
+    preset.bullets.indentation = 10; // Keep indentation for readability
+
+    return preset;
+}
+
+/**
  * Adjust font sizes and spacing to fit one page while preserving reference styling
  * Progressively reduces font sizes until content fits
  */
@@ -242,4 +302,3 @@ export function adjustStylingForOnePage(stylingSpecs) {
 
   return adjusted
 }
-

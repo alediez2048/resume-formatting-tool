@@ -43,23 +43,29 @@ function createDynamicStyles(stylingSpecs) {
   const transforms = stylingSpecs?.transforms || {}
   const colors = stylingSpecs?.colors || {}
 
+  // Strict fallback to standard margins if not provided, ensuring no hidden padding
+  const marginTop = layout.margins?.top !== undefined ? layout.margins.top : 30
+  const marginBottom = layout.margins?.bottom !== undefined ? layout.margins.bottom : 30
+  const marginLeft = layout.margins?.left !== undefined ? layout.margins.left : 30
+  const marginRight = layout.margins?.right !== undefined ? layout.margins.right : 30
+
   return StyleSheet.create({
     page: {
-      paddingTop: layout.margins?.top || 10, // Minimal top padding
-      paddingBottom: layout.margins?.bottom || 15,
-      paddingLeft: layout.margins?.left || 30,
-      paddingRight: layout.margins?.right || 30,
+      paddingTop: marginTop,
+      paddingBottom: marginBottom,
+      paddingLeft: marginLeft,
+      paddingRight: marginRight,
       fontSize: fonts.body?.size || 11,
       fontFamily: mapFontFamily(fonts.body?.family || fonts.name?.family || 'Helvetica'),
       backgroundColor: colors.background || '#ffffff',
       color: colors.text || '#000000',
     },
     header: {
-      marginTop: 0, // No top margin on header
-      marginBottom: layout.sectionSpacing || 6, // Use adjusted spacing
+      marginTop: 0, // STRICT
+      marginBottom: layout.sectionSpacing || 6, 
       borderBottom: colors.accent ? `2px solid ${colors.accent}` : '2px solid #667eea',
-      paddingBottom: 8, // Reduced for one-page fit
-      alignItems: 'center', // Center content horizontally
+      paddingBottom: 8, 
+      alignItems: 'center', 
     },
     name: {
       fontSize: fonts.name?.size || 24,
@@ -67,8 +73,8 @@ function createDynamicStyles(stylingSpecs) {
       fontStyle: fonts.name?.style === 'italic' ? 'italic' : 'normal',
       fontFamily: mapFontFamily(fonts.name?.family),
       color: colors.text || '#1a1a1a',
-      marginBottom: 8, // Use reference margin
-      letterSpacing: 0.5, // Use reference letter spacing
+      marginBottom: 8, 
+      letterSpacing: 0.5, 
       textTransform: transforms.name === 'uppercase' ? 'uppercase' : 
                      transforms.name === 'lowercase' ? 'lowercase' : 'none',
       textAlign: 'center',
@@ -76,7 +82,7 @@ function createDynamicStyles(stylingSpecs) {
     contactInfo: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      justifyContent: 'center', // Center contact items
+      justifyContent: 'center', 
       gap: 12,
       fontSize: fonts.contact?.size || 10,
       fontWeight: fonts.contact?.weight === 'bold' ? 'bold' : 'normal',
@@ -87,8 +93,8 @@ function createDynamicStyles(stylingSpecs) {
       marginRight: 15,
     },
     section: {
-      marginBottom: layout.sectionSpacing || 8, // Minimal spacing (less than 0.25 inch = 18pt)
-      marginTop: 0, // No top margin on sections
+      marginBottom: layout.sectionSpacing || 8, 
+      marginTop: 0, // STRICT
     },
     sectionTitle: {
       fontSize: fonts.sectionTitle?.size || 14,
@@ -96,26 +102,26 @@ function createDynamicStyles(stylingSpecs) {
       fontStyle: fonts.sectionTitle?.style === 'italic' ? 'italic' : 'normal',
       color: colors.accent || '#667eea',
       marginBottom: 2, // Minimal spacing below title
-      marginTop: 0, // No top margin
+      marginTop: 0, // STRICT
       textTransform: transforms.sectionTitle === 'uppercase' ? 'uppercase' :
                      transforms.sectionTitle === 'lowercase' ? 'lowercase' :
                      transforms.sectionTitle === 'capitalize' ? 'capitalize' : 'uppercase',
-      letterSpacing: fonts.sectionTitle?.letterSpacing || 1, // Use reference if available
+      letterSpacing: fonts.sectionTitle?.letterSpacing || 1, 
       borderBottom: '1px solid #e0e0e0',
-      paddingBottom: 2, // Minimal padding
+      paddingBottom: 2, 
     },
     summary: {
       fontSize: fonts.body?.size || 11,
-      lineHeight: fonts.body?.lineHeight || 1.6, // Use reference line height
+      lineHeight: fonts.body?.lineHeight || 1.6, 
       fontWeight: fonts.body?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.body?.style === 'italic' ? 'italic' : 'normal',
       color: colors.text || '#333',
       textAlign: 'justify',
-      marginBottom: 0, // No extra margin on summary text
-      marginTop: 0,
+      marginBottom: 0, // STRICT
+      marginTop: 0, // STRICT
     },
     experienceItem: {
-      marginBottom: layout.paragraphSpacing || 3, // Use adjusted spacing (tight for one-page)
+      marginBottom: layout.paragraphSpacing || 3, 
     },
     experienceHeader: {
       flexDirection: 'row',
@@ -154,9 +160,9 @@ function createDynamicStyles(stylingSpecs) {
       fontSize: fonts.bulletText?.size || fonts.body?.size || 10,
       fontWeight: fonts.bulletText?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.bulletText?.style === 'italic' ? 'italic' : 'normal',
-      lineHeight: bullets.lineSpacing || 1.15, // Use adjusted line spacing (tight for one-page)
+      lineHeight: bullets.lineSpacing || 1.15, 
       color: colors.text || '#444',
-      marginBottom: 1, // Reduced for one-page fit
+      marginBottom: 1, // Minimal bottom margin
     },
     bulletMarker: {
       marginRight: 4,
@@ -174,7 +180,7 @@ function createDynamicStyles(stylingSpecs) {
       color: colors.text || '#333',
     },
     educationItem: {
-      marginBottom: layout.paragraphSpacing || 3, // Use adjusted spacing (tight for one-page)
+      marginBottom: layout.paragraphSpacing || 3, 
     },
     degree: {
       fontWeight: 'bold',
