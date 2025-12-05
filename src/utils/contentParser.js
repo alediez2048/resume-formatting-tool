@@ -19,13 +19,13 @@ export async function parseResumeContentWithAI(resumeText, openAIApiKey) {
   try {
     console.log('🤖 Using AI-powered parsing for resume content')
     
-    const response = await fetch('http://localhost:3001/api/openai/chat', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openAIApiKey}`
       },
       body: JSON.stringify({
-        apiKey: openAIApiKey,
         model: 'gpt-4o',
         messages: [
           {
