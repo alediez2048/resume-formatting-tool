@@ -5,17 +5,18 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
  * Map extracted font names to React-PDF compatible fonts
  * React-PDF supports: Helvetica, Times-Roman, Courier
  * PDF internal font names (like g_d0_f6) are mapped to standard fonts
+ * DEFAULT: Times-Roman for professional resume appearance
  */
 function mapFontFamily(fontName) {
-  if (!fontName) return 'Helvetica'
+  if (!fontName) return 'Times-Roman'
   
   const fontLower = fontName.toLowerCase()
   
   // Handle PDF internal font names (usually start with letters/numbers/underscores)
-  // These are typically encoded font names and should default to Helvetica
+  // These are typically encoded font names and should default to Times-Roman
   if (/^[a-z0-9_]+$/.test(fontLower) && fontLower.length < 10) {
-    // Likely a PDF internal font name, default to Helvetica
-    return 'Helvetica'
+    // Likely a PDF internal font name, default to Times-Roman
+    return 'Times-Roman'
   }
   
   // Map common font names to React-PDF fonts
@@ -29,8 +30,8 @@ function mapFontFamily(fontName) {
     return 'Courier'
   }
   
-  // Default to Helvetica for unknown fonts
-  return 'Helvetica'
+  // Default to Times-Roman for unknown fonts
+  return 'Times-Roman'
 }
 
 /**
@@ -56,7 +57,7 @@ function createDynamicStyles(stylingSpecs) {
       paddingLeft: marginLeft,
       paddingRight: marginRight,
       fontSize: fonts.body?.size || 11,
-      fontFamily: mapFontFamily(fonts.body?.family || fonts.name?.family || 'Helvetica'),
+      fontFamily: 'Times-Roman', // Global font set to Times New Roman
       backgroundColor: colors.background || '#ffffff',
       color: colors.text || '#000000',
     },
@@ -69,9 +70,9 @@ function createDynamicStyles(stylingSpecs) {
     },
     name: {
       fontSize: fonts.name?.size || 24,
-      fontWeight: fonts.name?.weight === 'bold' ? 'bold' : 'normal',
+      fontWeight: 'bold', // Always bold for name
       fontStyle: fonts.name?.style === 'italic' ? 'italic' : 'normal',
-      fontFamily: mapFontFamily(fonts.name?.family),
+      fontFamily: 'Times-Roman', // Times New Roman for name
       color: colors.text || '#1a1a1a',
       marginBottom: 8, 
       letterSpacing: 0.5, 
@@ -87,10 +88,12 @@ function createDynamicStyles(stylingSpecs) {
       fontSize: fonts.contact?.size || 10,
       fontWeight: fonts.contact?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.contact?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       color: colors.text || '#555',
     },
     contactItem: {
       marginRight: 15,
+      fontFamily: 'Times-Roman',
     },
     section: {
       marginBottom: layout.sectionSpacing || 8, 
@@ -98,9 +101,10 @@ function createDynamicStyles(stylingSpecs) {
     },
     sectionTitle: {
       fontSize: fonts.sectionTitle?.size || 14,
-      fontWeight: fonts.sectionTitle?.weight === 'bold' ? 'bold' : 'normal',
+      fontWeight: 'bold', // Always bold for section titles
       fontStyle: fonts.sectionTitle?.style === 'italic' ? 'italic' : 'normal',
-      color: colors.accent || '#667eea',
+      fontFamily: 'Times-Roman',
+      color: '#000000', // Black color for section titles
       marginBottom: 2, // Minimal spacing below title
       marginTop: 0, // STRICT
       textTransform: transforms.sectionTitle === 'uppercase' ? 'uppercase' :
@@ -115,6 +119,7 @@ function createDynamicStyles(stylingSpecs) {
       lineHeight: fonts.body?.lineHeight || 1.6, 
       fontWeight: fonts.body?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.body?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       color: colors.text || '#333',
       textAlign: 'justify',
       marginBottom: 0, // STRICT
@@ -130,25 +135,29 @@ function createDynamicStyles(stylingSpecs) {
     },
     companyName: {
       fontSize: fonts.companyName?.size || 12,
-      fontWeight: fonts.companyName?.weight === 'bold' ? 'bold' : 'normal',
+      fontWeight: 'bold', // Always bold for company names
       fontStyle: fonts.companyName?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       color: colors.text || '#1a1a1a',
       marginBottom: 2,
     },
     roleTitle: {
       fontSize: fonts.roleTitle?.size || 12,
-      fontWeight: fonts.roleTitle?.weight === 'bold' ? 'bold' : 'normal',
+      fontWeight: 'bold', // Always bold for role titles
       fontStyle: fonts.roleTitle?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       color: colors.text || '#1a1a1a',
     },
     date: {
       fontSize: fonts.date?.size || 10,
       fontWeight: fonts.date?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.date?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       color: colors.text || '#777',
     },
     location: {
       fontSize: fonts.date?.size || 10,
+      fontFamily: 'Times-Roman',
       color: colors.text || '#777',
       marginBottom: 2,
     },
@@ -160,22 +169,26 @@ function createDynamicStyles(stylingSpecs) {
       fontSize: fonts.bulletText?.size || fonts.body?.size || 10,
       fontWeight: fonts.bulletText?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.bulletText?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       lineHeight: bullets.lineSpacing || 1.15, 
       color: colors.text || '#444',
       marginBottom: 1, // Minimal bottom margin
     },
     bulletMarker: {
       marginRight: 4,
+      fontFamily: 'Times-Roman',
     },
     skills: {
       fontSize: fonts.skills?.size || fonts.body?.size || 10,
       fontWeight: fonts.skills?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.skills?.style === 'italic' ? 'italic' : 'normal',
+      fontFamily: 'Times-Roman',
       lineHeight: 1.6,
       color: colors.text || '#333',
     },
     education: {
       fontSize: fonts.education?.size || fonts.body?.size || 10,
+      fontFamily: 'Times-Roman',
       lineHeight: 1.5,
       color: colors.text || '#333',
     },
@@ -184,15 +197,18 @@ function createDynamicStyles(stylingSpecs) {
     },
     degree: {
       fontWeight: 'bold',
+      fontFamily: 'Times-Roman',
       fontSize: fonts.education?.size || 11,
       color: colors.text || '#1a1a1a',
     },
     school: {
       fontSize: fonts.education?.size || 10,
+      fontFamily: 'Times-Roman',
       color: colors.text || '#555',
     },
     gpa: {
       fontSize: fonts.education?.size || 10,
+      fontFamily: 'Times-Roman',
       color: colors.text || '#555',
       fontStyle: 'italic',
     },
@@ -227,23 +243,23 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
       return createDynamicStyles(safeStylingSpecs)
     } catch (error) {
       console.error('Error creating styles:', error)
-      // Return default styles if there's an error
+      // Return default styles if there's an error - using Times-Roman
       return StyleSheet.create({
-        page: { padding: 40, fontSize: 11, fontFamily: 'Helvetica' },
-        name: { fontSize: 24, fontWeight: 'bold' },
-        contactInfo: { fontSize: 10 },
+        page: { padding: 40, fontSize: 11, fontFamily: 'Times-Roman' },
+        name: { fontSize: 24, fontWeight: 'bold', fontFamily: 'Times-Roman' },
+        contactInfo: { fontSize: 10, fontFamily: 'Times-Roman' },
         section: { marginBottom: 20 },
-        sectionTitle: { fontSize: 14, fontWeight: 'bold' },
-        summary: { fontSize: 11 },
+        sectionTitle: { fontSize: 14, fontWeight: 'bold', fontFamily: 'Times-Roman' },
+        summary: { fontSize: 11, fontFamily: 'Times-Roman' },
         experienceItem: { marginBottom: 12 },
-        companyName: { fontSize: 12, fontWeight: 'bold' },
-        roleTitle: { fontSize: 12 },
-        date: { fontSize: 10 },
-        bulletPoint: { fontSize: 10, marginBottom: 3 },
-        skills: { fontSize: 10 },
+        companyName: { fontSize: 12, fontWeight: 'bold', fontFamily: 'Times-Roman' },
+        roleTitle: { fontSize: 12, fontWeight: 'bold', fontFamily: 'Times-Roman' },
+        date: { fontSize: 10, fontFamily: 'Times-Roman' },
+        bulletPoint: { fontSize: 10, marginBottom: 3, fontFamily: 'Times-Roman' },
+        skills: { fontSize: 10, fontFamily: 'Times-Roman' },
         educationItem: { marginBottom: 8 },
-        degree: { fontSize: 11, fontWeight: 'bold' },
-        school: { fontSize: 10 }
+        degree: { fontSize: 11, fontWeight: 'bold', fontFamily: 'Times-Roman' },
+        school: { fontSize: 10, fontFamily: 'Times-Roman' }
       })
     }
   }, [JSON.stringify(safeStylingSpecs)])

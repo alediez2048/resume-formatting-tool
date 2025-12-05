@@ -347,13 +347,16 @@ export async function analyzeWithOpenAI(imageData, apiKey) {
     
     console.log('Calling OpenAI Vision API with model: gpt-4o')
     
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Use proxy server to avoid CORS issues
+    const apiUrl = 'http://localhost:3001/api/openai/chat';
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        apiKey: apiKey, // Send API key to proxy server
         model: 'gpt-4o', // Updated to current vision model
         messages: [
           {
@@ -415,7 +418,7 @@ Return a JSON object with these specifications.`
         ],
         max_tokens: 2000
       })
-    })
+    });
 
     if (!response.ok) {
       // Handle error response

@@ -51,13 +51,13 @@ export async function generateCoverLetter({ resume, jobDescription, companyDetai
   `
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('http://localhost:3001/api/openai/chat', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        apiKey: apiKey,
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },

@@ -23,14 +23,14 @@ export async function applyStylingWithAI(parsedContent, referenceTemplate, openA
     // Prepare the prompt for OpenAI
     const prompt = createStylingPrompt(parsedContent, referenceTemplate)
     
-    // Call OpenAI API
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call OpenAI API via proxy server
+    const response = await fetch('http://localhost:3001/api/openai/chat', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIApiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        apiKey: openAIApiKey,
         model: 'gpt-4o',
         messages: [
           {
@@ -257,13 +257,13 @@ OPTIMIZATION RULES:
 
 Return ONLY a JSON object with the optimized content in the same structure.`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('http://localhost:3001/api/openai/chat', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openAIApiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        apiKey: openAIApiKey,
         model: 'gpt-4o',
         messages: [
           {
