@@ -351,10 +351,10 @@ function analyzePDFStyling(textItems, viewport, visualAnalysis = null, openAIAna
   
   // Identify font sizes for different elements
   // Largest is usually name, second largest might be section titles, etc.
-  const nameSize = uniqueFontSizes[0] || 24
-  const sectionTitleSize = uniqueFontSizes[1] || uniqueFontSizes[0] * 0.6 || 14
-  const bodySize = uniqueFontSizes[uniqueFontSizes.length - 1] || 11
-  const contactSize = bodySize * 0.9 || 10
+  let nameSize = uniqueFontSizes[0] || 24
+  let sectionTitleSize = uniqueFontSizes[1] || uniqueFontSizes[0] * 0.6 || 14
+  let bodySize = uniqueFontSizes[uniqueFontSizes.length - 1] || 11
+  let contactSize = bodySize * 0.9 || 10
 
   // Analyze spacing between text items (section spacing)
   const yPositionsSorted = [...new Set(yPositions)].sort((a, b) => b - a)
