@@ -115,3 +115,4 @@ const CoverLetterPreview = ({ generatedData, onBack }) => {
 
 export default CoverLetterPreview
 
+

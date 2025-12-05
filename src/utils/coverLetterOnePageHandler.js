@@ -60,3 +60,4 @@ export function adjustCoverLetterStyling(currentStyling) {
   return adjusted
 }
 
+

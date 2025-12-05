@@ -83,3 +83,4 @@ export async function generateCoverLetter({ resume, jobDescription, companyDetai
   }
 }
 
+

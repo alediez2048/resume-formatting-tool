@@ -177,3 +177,4 @@ const CoverLetterInput = ({ onGenerate, isGenerating, openAIApiKey }) => {
 
 export default CoverLetterInput
 
+
