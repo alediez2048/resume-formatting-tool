@@ -8,19 +8,17 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { analyzePDFVisual, analyzeWithOpenAI } from './visualAnalyzer'
 import { extractEnhancedStyling } from './enhancedStylingExtractor'
 
-// Get PDF.js version for CDN worker
+// Get PDF.js version for CDN worker (fallback only)
 const PDFJS_VERSION = pdfjsLib.version || '5.4.394'
 
-// Worker sources - use unpkg CDN (more reliable than cdnjs for newer versions)
-// Fallback to public folder if CDN fails
-const CDN_WORKER_SRC = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`
+// Worker sources - use LOCAL file first (more reliable), CDN as fallback
 const PUBLIC_WORKER_SRC = '/pdf.worker.min.mjs'
+const CDN_WORKER_SRC = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`
 
-// Always pass workerSrc directly to getDocument (more reliable than GlobalWorkerOptions)
-// Set GlobalWorkerOptions as a fallback, but don't rely on it
+// Set worker to use LOCAL file by default
 try {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = CDN_WORKER_SRC
-  console.log('✅ Set GlobalWorkerOptions.workerSrc:', CDN_WORKER_SRC)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PUBLIC_WORKER_SRC
+  console.log('✅ Set GlobalWorkerOptions.workerSrc to LOCAL:', PUBLIC_WORKER_SRC)
 } catch (e) {
   console.warn('⚠️ Could not set GlobalWorkerOptions.workerSrc:', e.message)
 }
@@ -61,27 +59,27 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
     
     console.log('Starting PDF parsing...', {
       fileSize: arrayBuffer.byteLength,
-      workerSrc: CDN_WORKER_SRC,
+      workerSrc: PUBLIC_WORKER_SRC,
       pdfjsVersion: PDFJS_VERSION
     })
     
     // Add timeout to PDF parsing (30 seconds max)
-    // Use unpkg CDN worker (verified accessible) with public folder fallback
+    // Use LOCAL worker first (more reliable), CDN as fallback
     let pdf
     try {
       pdf = await withTimeout(
         pdfjsLib.getDocument({ 
           data: arrayBuffer,
-          workerSrc: CDN_WORKER_SRC, // unpkg CDN (verified accessible)
+          workerSrc: PUBLIC_WORKER_SRC, // LOCAL worker (more reliable)
           verbosity: 0, // Reduce logging
           stopAtErrors: false // Continue even with errors
         }).promise,
         30000,
         'PDF parsing timed out. The PDF may be corrupted or too complex. Please try a different PDF file.'
       )
-      console.log('✅ PDF parsed successfully with unpkg CDN worker')
+      console.log('✅ PDF parsed successfully with LOCAL worker')
     } catch (workerError) {
-      // If unpkg CDN worker fails, try public folder as fallback
+      // If local worker fails, try CDN as fallback
       const errorMsg = workerError?.message || String(workerError)
       const isWorkerError = errorMsg.includes('worker') || 
                            errorMsg.includes('Failed to fetch') ||
@@ -93,22 +91,22 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
                            errorMsg.includes('Setting up fake worker')
       
       if (isWorkerError) {
-        console.warn('⚠️ unpkg CDN worker failed, trying public folder worker...')
-        console.warn('CDN error:', errorMsg)
-        console.warn('Attempting fallback to:', PUBLIC_WORKER_SRC)
+        console.warn('⚠️ Local worker failed, trying CDN worker as fallback...')
+        console.warn('Local error:', errorMsg)
+        console.warn('Attempting fallback to:', CDN_WORKER_SRC)
         
         try {
           pdf = await withTimeout(
             pdfjsLib.getDocument({ 
               data: arrayBuffer,
-              workerSrc: PUBLIC_WORKER_SRC, // Try public folder
+              workerSrc: CDN_WORKER_SRC, // Try CDN as fallback
               verbosity: 0,
               stopAtErrors: false
             }).promise,
             30000,
             'PDF parsing timed out. The PDF may be corrupted or too complex. Please try a different PDF file.'
           )
-          console.log('✅ PDF parsed successfully with public folder worker fallback')
+          console.log('✅ PDF parsed successfully with CDN worker fallback')
         } catch (publicError) {
           const publicErrorMsg = publicError?.message || String(publicError)
           console.error('❌ Both unpkg CDN and public folder workers failed')
@@ -267,7 +265,8 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
     } else if (error.message.includes('worker') || error.message.includes('readonly')) {
       // Worker error - provide helpful diagnostics
       console.error('Worker loading diagnostics:', {
-        workerSrc: CDN_WORKER_SRC,
+        workerSrc: PUBLIC_WORKER_SRC,
+        fallbackWorkerSrc: CDN_WORKER_SRC,
         pdfjsVersion: PDFJS_VERSION,
         globalWorkerSrc: pdfjsLib.GlobalWorkerOptions.workerSrc,
         errorMessage: error.message,
@@ -280,10 +279,10 @@ export async function parsePDF(file, onProgress, openAIApiKey) {
                             error.message.includes('CORS')
       
       if (isNetworkError) {
-        errorMessage = `PDF.js worker failed to load from CDN (${CDN_WORKER_SRC}). ` +
+        errorMessage = `PDF.js worker failed to load. Tried both local worker (${PUBLIC_WORKER_SRC}) and CDN fallback (${CDN_WORKER_SRC}). ` +
                       `This is likely due to:\n` +
-                      `1. No internet connection\n` +
-                      `2. Firewall or proxy blocking CDN access\n` +
+                      `1. Missing worker file in public folder\n` +
+                      `2. No internet connection for CDN fallback\n` +
                       `3. Browser security restrictions\n\n` +
                       `Please check your internet connection and try again. If the problem persists, check the browser console (F12) for details.`
       } else {

@@ -29,127 +29,216 @@ function optimizeProgrammatically(styledContent, referenceTemplate) {
 }
 
 /**
- * Adjust font sizes and spacing to fit one page while preserving reference styling
- * Progressively reduces font sizes until content fits
+ * Calculate content density to determine if we need to shrink or expand
+ * Returns a scaling factor: <1 means shrink, >1 means expand, 1 means perfect fit
  */
-export function adjustStylingMinimally(stylingSpecs) {
+function calculateContentDensity(content) {
+  if (!content) return 1.0
+  
+  // Count content elements
+  const workExpCount = content.workExperience?.length || 0
+  const totalBullets = content.workExperience?.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0) || 0
+  const personalStatementLength = content.personalStatement?.length || 0
+  const skillsLength = content.skills?.length || 0
+  const educationCount = content.education?.length || 0
+  
+  // Calculate density score (rough estimate of content volume)
+  // Each work experience = 100 points
+  // Each bullet = 30 points  
+  // Personal statement = 1 point per 10 chars
+  // Skills = 1 point per 20 chars
+  // Each education = 40 points
+  const densityScore = 
+    (workExpCount * 100) + 
+    (totalBullets * 30) + 
+    (personalStatementLength / 10) +
+    (skillsLength / 20) +
+    (educationCount * 40)
+  
+  console.log('📊 Content Density Analysis:', {
+    workExpCount,
+    totalBullets,
+    personalStatementLength,
+    skillsLength,
+    educationCount,
+    densityScore
+  })
+  
+  // Determine scaling factor based on density
+  // < 400: Very short resume → expand (scale up to 1.15x)
+  // 400-600: Short resume → expand slightly (scale up to 1.05x)
+  // 600-800: Medium resume → perfect fit (scale 1.0x)
+  // 800-1000: Long resume → shrink slightly (scale down to 0.85x)
+  // > 1000: Very long resume → shrink aggressively (scale down to 0.70x)
+  
+  if (densityScore < 400) {
+    // Very short - expand by 15%
+    const scaleFactor = 1.15
+    console.log(`✅ Short resume detected (score: ${densityScore}) → Expanding by ${(scaleFactor - 1) * 100}%`)
+    return scaleFactor
+  } else if (densityScore < 600) {
+    // Short - expand by 5%
+    const scaleFactor = 1.05
+    console.log(`✅ Slightly short resume (score: ${densityScore}) → Expanding by ${(scaleFactor - 1) * 100}%`)
+    return scaleFactor
+  } else if (densityScore < 800) {
+    // Medium - perfect fit
+    console.log(`✅ Perfect fit resume (score: ${densityScore}) → No scaling needed`)
+    return 1.0
+  } else if (densityScore < 1000) {
+    // Long - shrink by 15%
+    const scaleFactor = 0.85
+    console.log(`⚠️ Long resume detected (score: ${densityScore}) → Shrinking by ${(1 - scaleFactor) * 100}%`)
+    return scaleFactor
+  } else {
+    // Very long - shrink by 30%
+    const scaleFactor = 0.70
+    console.log(`⚠️ Very long resume detected (score: ${densityScore}) → Shrinking by ${(1 - scaleFactor) * 100}%`)
+    return scaleFactor
+  }
+}
+
+/**
+ * Adjust font sizes and spacing to optimally fill one page
+ * Expands short resumes, shrinks long resumes
+ */
+export function adjustStylingMinimally(stylingSpecs, content = null) {
   const adjusted = JSON.parse(JSON.stringify(stylingSpecs)) // Deep copy to preserve original
 
-  // Font size reduction factor (reduce all fonts by 15-20% to fit one page)
-  const fontReductionFactor = 0.85 // 15% reduction
+  // Calculate optimal scaling based on content density
+  const scaleFactor = content ? calculateContentDensity(content) : 0.85 // Default to slight shrink if no content provided
+  
   const minFontSize = 8 // Minimum readable font size
+  const maxFontSize = 16 // Maximum font size (for short resumes)
 
-  // Reduce ALL font sizes proportionally
+  // Scale ALL font sizes proportionally (can expand or shrink)
   if (adjusted.fonts) {
     // Name font
     if (adjusted.fonts.name?.size) {
-      adjusted.fonts.name.size = Math.max(minFontSize, Math.round(adjusted.fonts.name.size * fontReductionFactor))
+      adjusted.fonts.name.size = Math.max(minFontSize, Math.min(maxFontSize * 2, Math.round(adjusted.fonts.name.size * scaleFactor)))
     }
     
     // Section title font
     if (adjusted.fonts.sectionTitle?.size) {
-      adjusted.fonts.sectionTitle.size = Math.max(minFontSize, Math.round(adjusted.fonts.sectionTitle.size * fontReductionFactor))
+      adjusted.fonts.sectionTitle.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.sectionTitle.size * scaleFactor)))
     }
     
     // Company name font
     if (adjusted.fonts.companyName?.size) {
-      adjusted.fonts.companyName.size = Math.max(minFontSize, Math.round(adjusted.fonts.companyName.size * fontReductionFactor))
+      adjusted.fonts.companyName.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.companyName.size * scaleFactor)))
     }
     
     // Role title font
     if (adjusted.fonts.roleTitle?.size) {
-      adjusted.fonts.roleTitle.size = Math.max(minFontSize, Math.round(adjusted.fonts.roleTitle.size * fontReductionFactor))
+      adjusted.fonts.roleTitle.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.roleTitle.size * scaleFactor)))
     }
     
     // Date font
     if (adjusted.fonts.date?.size) {
-      adjusted.fonts.date.size = Math.max(minFontSize, Math.round(adjusted.fonts.date.size * fontReductionFactor))
+      adjusted.fonts.date.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.date.size * scaleFactor)))
     }
     
     // Body font
     if (adjusted.fonts.body?.size) {
-      adjusted.fonts.body.size = Math.max(minFontSize, Math.round(adjusted.fonts.body.size * fontReductionFactor))
+      adjusted.fonts.body.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.body.size * scaleFactor)))
     }
     
     // Bullet text font
     if (adjusted.fonts.bulletText?.size) {
-      adjusted.fonts.bulletText.size = Math.max(minFontSize, Math.round(adjusted.fonts.bulletText.size * fontReductionFactor))
+      adjusted.fonts.bulletText.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.bulletText.size * scaleFactor)))
     }
     
     // Contact font
     if (adjusted.fonts.contact?.size) {
-      adjusted.fonts.contact.size = Math.max(minFontSize, Math.round(adjusted.fonts.contact.size * fontReductionFactor))
+      adjusted.fonts.contact.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.contact.size * scaleFactor)))
     }
     
     // Skills font
     if (adjusted.fonts.skills?.size) {
-      adjusted.fonts.skills.size = Math.max(minFontSize, Math.round(adjusted.fonts.skills.size * fontReductionFactor))
+      adjusted.fonts.skills.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.skills.size * scaleFactor)))
     }
     
     // Education font
     if (adjusted.fonts.education?.size) {
-      adjusted.fonts.education.size = Math.max(minFontSize, Math.round(adjusted.fonts.education.size * fontReductionFactor))
+      adjusted.fonts.education.size = Math.max(minFontSize, Math.min(maxFontSize, Math.round(adjusted.fonts.education.size * scaleFactor)))
     }
     
-    // Reduce line heights proportionally
+    // Adjust line heights based on scaling
     if (adjusted.fonts.body?.lineHeight) {
-      adjusted.fonts.body.lineHeight = Math.max(1.2, adjusted.fonts.body.lineHeight * 0.9)
+      if (scaleFactor < 1) {
+        // Shrinking - use tighter line height
+        adjusted.fonts.body.lineHeight = 1.15
+      } else {
+        // Expanding - use more comfortable line height
+        adjusted.fonts.body.lineHeight = 1.4
+      }
     }
   }
 
-  // Reduce spacing to complement font size reduction
+  // Adjust spacing to complement font scaling (expand or shrink)
   if (adjusted.layout) {
-    // Reduce section spacing - minimal (less than 0.25 inch = 18pt)
-    if (adjusted.layout.sectionSpacing) {
-      // Cap at 12pt maximum (less than 0.25 inch), reduce by 70%
-      adjusted.layout.sectionSpacing = Math.min(12, Math.max(6, Math.round(adjusted.layout.sectionSpacing * 0.3)))
-    } else {
-      adjusted.layout.sectionSpacing = 8 // Minimal spacing (less than 0.25 inch)
-    }
-    
-    // Reduce paragraph spacing
-    if (adjusted.layout.paragraphSpacing) {
-      adjusted.layout.paragraphSpacing = Math.max(3, Math.round(adjusted.layout.paragraphSpacing * 0.4))
-    } else {
-      adjusted.layout.paragraphSpacing = 3
-    }
-    
-    // Reduce margins - especially top margin for more content space
-    if (adjusted.layout.margins) {
+    if (scaleFactor < 1) {
+      // Shrinking - use minimal spacing but maintain professional top margin
+      adjusted.layout.sectionSpacing = 4 // Tight spacing
+      adjusted.layout.paragraphSpacing = 2 // Tight spacing
       adjusted.layout.margins = {
-        top: Math.max(10, Math.round((adjusted.layout.margins.top || 40) * 0.25)), // Aggressively reduce top margin
-        bottom: Math.max(15, Math.round((adjusted.layout.margins.bottom || 40) * 0.4)),
-        left: Math.max(30, Math.round((adjusted.layout.margins.left || 40) * 0.75)),
-        right: Math.max(30, Math.round((adjusted.layout.margins.right || 40) * 0.75))
+        top: 30, // Maintain adequate top margin even when shrinking
+        bottom: 15,
+        left: 25,
+        right: 25
       }
     } else {
+      // Expanding - use more generous spacing to fill page
+      const baseSpacing = adjusted.layout.sectionSpacing || 8
+      const baseParagraphSpacing = adjusted.layout.paragraphSpacing || 4
+      
+      adjusted.layout.sectionSpacing = Math.round(baseSpacing * scaleFactor * 1.2) // Extra spacing
+      adjusted.layout.paragraphSpacing = Math.round(baseParagraphSpacing * scaleFactor)
       adjusted.layout.margins = {
-        top: 10, // Minimal top margin
-        bottom: 15,
+        top: Math.round(30 * scaleFactor), // Generous top margin when expanding
+        bottom: Math.round(30 * scaleFactor),
         left: 30,
         right: 30
       }
     }
   } else {
-    adjusted.layout = {
-      sectionSpacing: 6,
-      paragraphSpacing: 3,
-      margins: {
-        top: 20,
-        bottom: 20,
-        left: 30,
-        right: 30
+    // Create layout if it doesn't exist
+    if (scaleFactor < 1) {
+      adjusted.layout = {
+        sectionSpacing: 4,
+        paragraphSpacing: 2,
+        margins: { top: 30, bottom: 15, left: 25, right: 25 } // Adequate top margin
+      }
+    } else {
+      adjusted.layout = {
+        sectionSpacing: Math.round(8 * scaleFactor * 1.2),
+        paragraphSpacing: Math.round(4 * scaleFactor),
+        margins: { 
+          top: Math.round(30 * scaleFactor), 
+          bottom: Math.round(30 * scaleFactor), 
+          left: 30, 
+          right: 30 
+        }
       }
     }
   }
 
-  // Reduce bullet line spacing
+  // Adjust bullet spacing based on scaling
   if (adjusted.bullets) {
-    adjusted.bullets.lineSpacing = Math.max(1.15, (adjusted.bullets.lineSpacing || 1.5) * 0.85)
+    if (scaleFactor < 1) {
+      // Shrinking - tight bullet spacing
+      adjusted.bullets.lineSpacing = 1.1
+      adjusted.bullets.indentation = 6
+    } else {
+      // Expanding - more generous bullet spacing
+      adjusted.bullets.lineSpacing = 1.3
+      adjusted.bullets.indentation = 10
+    }
   } else {
     adjusted.bullets = {
       ...adjusted.bullets,
-      lineSpacing: 1.15
+      lineSpacing: scaleFactor < 1 ? 1.1 : 1.3,
+      indentation: scaleFactor < 1 ? 6 : 10
     }
   }
 

@@ -45,7 +45,7 @@ function createDynamicStyles(stylingSpecs) {
 
   return StyleSheet.create({
     page: {
-      paddingTop: layout.margins?.top || 10, // Minimal top padding
+      paddingTop: layout.margins?.top || 30, // Adequate top padding for professional spacing
       paddingBottom: layout.margins?.bottom || 15,
       paddingLeft: layout.margins?.left || 30,
       paddingRight: layout.margins?.right || 30,
@@ -57,7 +57,7 @@ function createDynamicStyles(stylingSpecs) {
     header: {
       marginTop: 0, // No top margin on header
       marginBottom: layout.sectionSpacing || 6, // Use adjusted spacing
-      borderBottom: colors.accent ? `2px solid ${colors.accent}` : '2px solid #667eea',
+      borderBottom: '2px solid #000000', // Black separator (removed purple)
       paddingBottom: 8, // Reduced for one-page fit
       alignItems: 'center', // Center content horizontally
     },
@@ -84,7 +84,11 @@ function createDynamicStyles(stylingSpecs) {
       color: colors.text || '#555',
     },
     contactItem: {
-      marginRight: 15,
+      marginRight: 0,
+    },
+    contactSeparator: {
+      color: colors.text || '#555',
+      fontWeight: 'normal',
     },
     section: {
       marginBottom: layout.sectionSpacing || 8, // Minimal spacing (less than 0.25 inch = 18pt)
@@ -94,7 +98,7 @@ function createDynamicStyles(stylingSpecs) {
       fontSize: fonts.sectionTitle?.size || 14,
       fontWeight: fonts.sectionTitle?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.sectionTitle?.style === 'italic' ? 'italic' : 'normal',
-      color: colors.accent || '#667eea',
+      color: '#000000', // Black color for section titles
       marginBottom: 2, // Minimal spacing below title
       marginTop: 0, // No top margin
       textTransform: transforms.sectionTitle === 'uppercase' ? 'uppercase' :
@@ -259,14 +263,24 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         <View style={styles.header}>
           <Text style={styles.name}>{contactInfo.name || data.name || 'Your Name'}</Text>
           <View style={styles.contactInfo}>
+            {/* ATS-friendly: Use explicit separator (|) between contact items */}
             {contactInfo.email && (
               <Text style={styles.contactItem}>{String(contactInfo.email)}</Text>
+            )}
+            {contactInfo.email && (contactInfo.phone || contactInfo.location || contactInfo.website) && (
+              <Text style={styles.contactSeparator}> | </Text>
             )}
             {contactInfo.phone && (
               <Text style={styles.contactItem}>{String(contactInfo.phone)}</Text>
             )}
+            {contactInfo.phone && (contactInfo.location || contactInfo.website) && (
+              <Text style={styles.contactSeparator}> | </Text>
+            )}
             {contactInfo.location && (
               <Text style={styles.contactItem}>{String(contactInfo.location)}</Text>
+            )}
+            {contactInfo.location && contactInfo.website && (
+              <Text style={styles.contactSeparator}> | </Text>
             )}
             {contactInfo.website && (
               <Text style={styles.contactItem}>{String(contactInfo.website)}</Text>
@@ -277,7 +291,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Personal Statement */}
         {data.personalStatement && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Professional Summary</Text>
+            <Text style={styles.sectionTitle}>PROFESSIONAL SUMMARY</Text>
             <Text style={styles.summary}>{String(data.personalStatement)}</Text>
           </View>
         )}
@@ -285,7 +299,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Work Experience */}
         {workExperience.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Work Experience</Text>
+            <Text style={styles.sectionTitle}>WORK EXPERIENCE</Text>
             {workExperience.map((item, index) => {
               if (!item) return null
               const bullets = Array.isArray(item.bullets) ? item.bullets : []
@@ -329,7 +343,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Skills */}
         {data.skills && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Skills</Text>
+            <Text style={styles.sectionTitle}>SKILLS</Text>
             <Text style={styles.skills}>{String(data.skills)}</Text>
           </View>
         )}
@@ -337,7 +351,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Education */}
         {education.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Education</Text>
+            <Text style={styles.sectionTitle}>EDUCATION</Text>
             {education.map((item, index) => {
               if (!item) return null
               

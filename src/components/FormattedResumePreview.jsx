@@ -20,9 +20,9 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
       // Set optimized content immediately so preview can generate
       setOptimizedContent(styledContent)
       
-      // Adjust font sizes immediately for preview
+      // Adjust font sizes immediately for preview with content density calculation
       if (referenceTemplate?.stylingSpecs) {
-        const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs)
+        const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs, styledContent)
         setAdjustedStyling(adjusted)
       }
     }
@@ -50,14 +50,14 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
         setOptimizedContent(result.optimizedContent) // This is the original content, unchanged
       }
       
-      // Adjust font sizes (reduce by ~15%) and spacing to fit one page
-      // This preserves all content, just makes fonts smaller
-      const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs)
+      // Adjust font sizes and spacing to optimally fill one page
+      // This preserves all content, scales fonts/spacing up or down based on content density
+      const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs, result.optimizedContent)
       setAdjustedStyling(adjusted)
     } catch (error) {
       console.error('Error auto-optimizing:', error)
-      // Keep using original content, just adjust font sizes
-      const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs)
+      // Keep using original content, just adjust font sizes with density calculation
+      const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs, styledContent)
       setAdjustedStyling(adjusted)
     } finally {
       setIsOptimizing(false)
@@ -155,9 +155,10 @@ const FormattedResumePreview = ({ styledContent, referenceTemplate, openAIApiKey
         setOptimizedContent(result.optimizedContent)
       }
       
-      // Only apply minimal styling adjustments if content still doesn't fit
-      // Try with reference styling first, then apply minimal adjustments if needed
-      const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs)
+      // Apply dynamic styling adjustments based on content density
+      // This will expand or shrink to optimally fill the page
+      const contentToAnalyze = result.optimizedContent || optimizedContent || styledContent
+      const adjusted = adjustStylingMinimally(referenceTemplate.stylingSpecs, contentToAnalyze)
       setAdjustedStyling(adjusted)
       
       alert('Content re-optimized for one page while preserving reference styling!')
