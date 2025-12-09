@@ -224,14 +224,50 @@ export async function parseResumeContent(resumeText, openAIApiKey = null) {
     // Extract skills
     const skills = extractSkills(sections.skills || [])
     
-    // Debug logging
-    console.log('📊 PARSER RESULT:', {
-      personalStatement: sections.personalStatement ? `✅ Found (${sections.personalStatement.length} chars)` : '❌ NOT FOUND',
-      workExperienceCount: workExperience.length,
-      workExperienceBullets: workExperience.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0),
-      skills: skills ? '✅ Found' : '❌ NOT FOUND',
-      educationCount: education.length
-    })
+    // ENHANCED: Comprehensive debug logging
+    console.log('\n' + '='.repeat(80))
+    console.log('📊 FINAL PARSER RESULT SUMMARY')
+    console.log('='.repeat(80))
+    
+    // Personal Statement
+    if (sections.personalStatement) {
+      console.log(`✅ Personal Statement: Found (${sections.personalStatement.length} characters)`)
+      console.log(`   Preview: "${sections.personalStatement.substring(0, 100)}${sections.personalStatement.length > 100 ? '...' : ''}"`)
+    } else {
+      console.log('❌ Personal Statement: NOT FOUND')
+    }
+    
+    // Work Experience
+    const totalBullets = workExperience.reduce((sum, exp) => sum + (exp.bullets?.length || 0), 0)
+    if (workExperience.length > 0) {
+      console.log(`✅ Work Experience: ${workExperience.length} position(s), ${totalBullets} total bullets`)
+      workExperience.forEach((exp, idx) => {
+        console.log(`   ${idx + 1}. ${exp.company} - ${exp.title} (${exp.bullets?.length || 0} bullets)`)
+      })
+    } else {
+      console.log('❌ Work Experience: NOT FOUND')
+    }
+    
+    // Skills
+    if (skills) {
+      const skillsPreview = skills.substring(0, 100)
+      console.log(`✅ Skills: Found (${skills.length} characters)`)
+      console.log(`   Preview: "${skillsPreview}${skills.length > 100 ? '...' : ''}"`)
+    } else {
+      console.log('❌ Skills: NOT FOUND')
+    }
+    
+    // Education
+    if (education.length > 0) {
+      console.log(`✅ Education: ${education.length} entry/entries`)
+      education.forEach((edu, idx) => {
+        console.log(`   ${idx + 1}. ${edu.school || 'No school'} - ${edu.degree || edu.certificate || 'No degree'}`)
+      })
+    } else {
+      console.log('❌ Education: NOT FOUND')
+    }
+    
+    console.log('='.repeat(80) + '\n')
     
     return {
       success: true,
@@ -329,22 +365,24 @@ function extractSections(originalLines, trimmedLines) {
   }
 
   const sectionPatterns = {
-    personalStatement: /^(personal\s+statement|summary|professional\s+summary|about|profile|objective|executive\s+summary|professional\s+summary|summary\s+of\s+qualifications|career\s+summary|overview)$/i,
-    workExperience: /^(work\s+experience|experience|employment|professional\s+experience|career\s+history|professional\s+experience|work\s+history|employment\s+history)$/i,
-    skills: /^(skills|technical\s+skills|core\s+competencies|competencies|key\s+skills|core\s+skills|technical\s+proficiencies|core\s+skills)$/i,
-    education: /^(education|academic\s+background|qualifications|academic)$/i
+    personalStatement: /^(personal\s+statement|summary|professional\s+summary|about\s+me|about|profile|objective|executive\s+summary|summary\s+of\s+qualifications|career\s+summary|overview|career\s+objective|professional\s+profile)$/i,
+    workExperience: /^(work\s+experience|experience|employment|professional\s+experience|career\s+history|work\s+history|employment\s+history|relevant\s+experience)$/i,
+    skills: /^(skills|technical\s+skills|core\s+competencies|competencies|key\s+skills|core\s+skills|technical\s+proficiencies|expertise|technical\s+expertise)$/i,
+    education: /^(education|academic\s+background|qualifications|academic|academic\s+qualifications)$/i
   }
   
   // Debug: Log section patterns for troubleshooting
   console.log('🔍 Section patterns:', Object.keys(sectionPatterns))
+  console.log('📝 Searching for personal statement with patterns:', sectionPatterns.personalStatement.source)
 
   let currentSection = null
   let sectionContent = []
   let headerEndIndex = 0
 
-  // Skip header (first few lines) - use trimmed for detection
+  // IMPROVED: Skip header (first few lines) - use trimmed for detection
   // Look for contact info section (name, email, phone, etc.)
-  for (let i = 0; i < Math.min(8, trimmedLines.length); i++) {
+  // Extended to 10 lines (was 8) to handle longer headers
+  for (let i = 0; i < Math.min(10, trimmedLines.length); i++) {
     const line = trimmedLines[i]
     // Check if this looks like a section header (all caps, short, not contact info)
     const looksLikeSectionHeader = line && 
@@ -353,16 +391,60 @@ function extractSections(originalLines, trimmedLines) {
                                    /^[A-Z\s\-]+$/.test(line) &&
                                    !line.includes('@') && // Not email
                                    !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(line) && // Not phone
+                                   !/https?:\/\//.test(line) && // Not URL
                                    !/^[A-Z][a-z]+/.test(line) // Not mixed case (likely name)
     
-    if (looksLikeSectionHeader && !sectionPatterns.personalStatement.test(line)) {
-      // Might be a section header (but not personal statement)
+    // Check if it's a real section header (matches our patterns)
+    const isRealSectionHeader = Object.values(sectionPatterns).some(pattern => pattern.test(line))
+    
+    if (looksLikeSectionHeader && isRealSectionHeader) {
+      // This is a real section header, stop here
+      console.log(`📍 Found section header at line ${i}, stopping header scan: "${line}"`)
       break
     }
     headerEndIndex = i
   }
   
-  console.log(`📍 Header end index: ${headerEndIndex} (checked first ${Math.min(8, trimmedLines.length)} lines)`)
+  console.log(`📍 Header end index: ${headerEndIndex} (checked first ${Math.min(10, trimmedLines.length)} lines)`)
+  console.log(`📍 Lines after header will be scanned for personal statement and sections`)
+
+  // IMPROVED: Capture any substantial text between header and first section as personal statement
+  // Find the first section header
+  let firstSectionIndex = -1
+  for (let i = 0; i < trimmedLines.length; i++) {
+    const line = trimmedLines[i]
+    // Check if this is a section header
+    const isSectionHeader = Object.values(sectionPatterns).some(pattern => pattern.test(line))
+    if (isSectionHeader) {
+      firstSectionIndex = i
+      console.log(`📍 First section header found at line ${i}: "${line}"`)
+      break
+    }
+  }
+  
+  // If we found a first section, capture content between header and first section
+  if (firstSectionIndex > 3) {
+    const contentBeforeFirstSection = []
+    // Start from line 3 or 4 (after typical contact info) up to first section
+    // Use a fixed starting point to avoid missing content
+    const startLine = 3
+    for (let i = startLine; i < firstSectionIndex; i++) {
+      const line = trimmedLines[i]
+      // Skip empty lines, contact info, and URLs
+      if (line && 
+          line.length > 6 && 
+          !/@/.test(line) && 
+          !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(line) &&
+          !/https?:\/\//.test(line) &&
+          !/^linkedin/.test(line)) {
+        contentBeforeFirstSection.push(line)
+      }
+    }
+    if (contentBeforeFirstSection.length > 0) {
+      sections.personalStatement = contentBeforeFirstSection.join(' ')
+      console.log(`💬 ✅ Captured personal statement before first section (${sections.personalStatement.length} chars)`)
+    }
+  }
 
   // Parse remaining sections - iterate through trimmed lines but preserve originals
   for (let i = headerEndIndex + 1; i < trimmedLines.length; i++) {
@@ -426,20 +508,32 @@ function extractSections(originalLines, trimmedLines) {
         // (e.g., content right after contact info, before first section header)
         const isNotASectionHeader = !Object.values(sectionPatterns).some(pattern => pattern.test(trimmedLine))
         const isNotADivider = !/^[⸻\-_=]+$/.test(trimmedLine)
-        const isSubstantialText = trimmedLine.length > 10 && !isDate(trimmedLine)
+        const isNotContactInfo = !/@/.test(trimmedLine) && 
+                                 !/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(trimmedLine) &&
+                                 !/https?:\/\//.test(trimmedLine)
+        const isNotABullet = !/^[•\-\*▪▫◦‣⁃]/.test(trimmedLine) && 
+                            !/^\d+[\.\)]/.test(trimmedLine)
         
-        // More lenient: accept any substantial text before first section header
-        // Also check if it might be personal statement even if it's further down
-        const isBeforeFirstSection = i < headerEndIndex + 30 // Extended range
-        const isSubstantialEnough = trimmedLine.length > 8 // More lenient (was 10)
+        // IMPROVED: More lenient personal statement detection
+        // Extended range to 50 lines after header (was 30)
+        // Minimum length reduced to 6 characters (was 8)
+        // Added checks to exclude bullets and contact info
+        const isBeforeFirstSection = i < headerEndIndex + 50
+        const isSubstantialEnough = trimmedLine.length > 6 // More lenient
+        const looksLikeNaturalText = !isDate(trimmedLine) && 
+                                     isNotContactInfo && 
+                                     isNotABullet &&
+                                     !/^[A-Z\s\-]+$/.test(trimmedLine) // Not all caps (likely section header)
         
-        if (isBeforeFirstSection && isSubstantialEnough && isNotASectionHeader && isNotADivider) {
+        if (isBeforeFirstSection && isSubstantialEnough && isNotASectionHeader && isNotADivider && looksLikeNaturalText) {
           // This might be personal statement content
           if (!sections.personalStatement) {
             sections.personalStatement = trimmedLine
             console.log(`💬 Found potential personal statement content at line ${i}: "${trimmedLine.substring(0, 50)}${trimmedLine.length > 50 ? '...' : ''}"`)
           } else {
-            sections.personalStatement += ' ' + trimmedLine
+            // Add space or newline depending on context
+            const separator = trimmedLine.match(/^[A-Z]/) ? ' ' : ' ' // Always space for now
+            sections.personalStatement += separator + trimmedLine
             console.log(`💬 Appended to personal statement at line ${i}: "${trimmedLine.substring(0, 30)}${trimmedLine.length > 30 ? '...' : ''}"`)
           }
         } else if (trimmedLine) {
@@ -449,7 +543,8 @@ function extractSections(originalLines, trimmedLines) {
             const reason = !isBeforeFirstSection ? 'too far from header' : 
                           !isSubstantialEnough ? 'too short' : 
                           !isNotASectionHeader ? 'is section header' : 
-                          !isNotADivider ? 'is divider' : 'unknown'
+                          !isNotADivider ? 'is divider' : 
+                          !looksLikeNaturalText ? 'doesn\'t look like natural text' : 'unknown'
             console.log(`❓ Unidentified line ${i} (${reason}): "${trimmedLine.substring(0, 40)}${trimmedLine.length > 40 ? '...' : ''}"`)
           }
         }
@@ -525,20 +620,36 @@ function extractWorkExperience(workExpSections) {
       // Get original line (with spaces) for bullet detection
       const originalLine = originalLineByIndex[i] || line
       
-      // Check if this line is a bullet point
+      // IMPROVED: Enhanced bullet point detection
       // Support bullets at start OR with leading spaces (common in resumes)
-      // Also support numbered bullets and tab-indented bullets
+      // Also support numbered bullets, tab-indented bullets, and various bullet chars
       const trimmedForBulletCheck = line.trim()
-      const isBullet = /^[•\-\*▪▫◦‣⁃]|\d+[\.\)]/.test(trimmedForBulletCheck) ||
-                   /^\s{1,8}[•\-\*▪▫◦‣⁃]/.test(originalLine) || // Bullet with 1-8 leading spaces
+      const isBullet = /^[•\-\*▪▫◦‣⁃✓✔►▸⦿]/.test(trimmedForBulletCheck) || // Common bullets
+                   /^\d+[\.\)]/.test(trimmedForBulletCheck) || // Numbered bullets (1. or 1))
+                   /^\s{1,8}[•\-\*▪▫◦‣⁃✓✔►▸⦿]/.test(originalLine) || // Bullet with 1-8 leading spaces
                    /^\s{1,8}\d+[\.\)]/.test(originalLine) || // Numbered with leading spaces
-                   originalLine.startsWith('\t') // Tab-indented
+                   originalLine.startsWith('\t') || // Tab-indented
+                   /^[•\-\*▪▫◦‣⁃✓✔►▸⦿]\s/.test(line) // Bullet followed by space
+      
+      if (isBullet) {
+        console.log(`🔹 Detected bullet at line ${i}: "${line.substring(0, 60)}${line.length > 60 ? '...' : ''}"`)
+      }
+      
+      // Check if this line is ONLY a date (e.g., "2023 - Present")
+      // These should NOT be treated as work experiences
+      const isStandaloneDateLine = isDate(line) && line.split(/\s+/).length <= 4
       
       // Check for common resume formats first
       // Format 1: "Job Title | Company | Date" or "Company | Job Title | Date"
-      const pipeFormat = line.includes('|')
-      // Format 2: "Company - Job Title" or "Job Title - Company" (dash separator)
-      const dashFormat = line.includes(' - ') && !isDate(line)
+      const pipeFormat = line.includes('|') && !isStandaloneDateLine
+      // Format 2: "Company - Job Title" or "Job Title - Company" (dash/em-dash separator)
+      // FIXED: Support both regular dash (-) and em-dash (—)
+      // A line like "Junior Developer - Previous Company - 2016 - 2018" should still be dash format
+      // Also support "T-Mobile — SEO Manager" (em-dash)
+      // But EXCLUDE standalone dates like "2023 - Present"
+      const dashFormat = !isStandaloneDateLine &&
+                         (line.includes(' - ') || line.includes(' — ') || line.includes('—')) && 
+                         (line.split(/\s+[-—]\s+/).length >= 2 || line.split('—').length >= 2)
       // Format 3: "Company | Job Title | Date"
       
       let detectedCompany = null
@@ -547,6 +658,7 @@ function extractWorkExperience(workExpSections) {
       
       if (pipeFormat) {
         const parts = line.split('|').map(p => p.trim()).filter(p => p)
+        console.log(`  🔍 Pipe format detected, parts: ${JSON.stringify(parts)}`)
         if (parts.length >= 2) {
           // Try to identify which part is company, title, date
           parts.forEach((part, idx) => {
@@ -567,16 +679,30 @@ function extractWorkExperience(workExpSections) {
             detectedCompany = parts[1]
             detectedDate = parts[2] || detectedDate
           }
+          console.log(`  📌 Pipe parsed: Title="${detectedTitle}", Company="${detectedCompany}", Date="${detectedDate || 'Not found'}"`)
         }
       } else if (dashFormat) {
-        // Handle "Company - Job Title" or "Job Title - Company" format
-        const parts = line.split(/\s+-\s+/).map(p => p.trim()).filter(p => p)
+        // IMPROVED: Handle "Company - Job Title" or "Job Title - Company" format
+        // Also handle "Job Title - Company - Date" format (multiple dashes)
+        // FIXED: Support both regular dash and em-dash (—)
+        const parts = line.split(/\s+[-—]\s+|—/).map(p => p.trim()).filter(p => p)
         if (parts.length >= 2) {
           // Heuristic: Company names are usually shorter and don't contain common job title words
           const jobTitleWords = /engineer|manager|director|analyst|developer|designer|strategist|producer|specialist|coordinator|lead|senior|junior/i
           
-          const firstPart = parts[0]
-          const secondPart = parts[1]
+          let firstPart = parts[0]
+          let secondPart = parts[1]
+          let remainingParts = parts.slice(2)
+          
+          // Check if last parts are dates (e.g., "2016 - 2018" split into ["2016", "2018"])
+          if (remainingParts.length > 0) {
+            // Reconstruct date if it was split
+            const possibleDate = remainingParts.join(' - ')
+            if (isDate(possibleDate) || /^\d{4}/.test(possibleDate)) {
+              detectedDate = possibleDate
+              // Only use first two parts for company/title detection
+            }
+          }
           
           // Check if first part looks like a company (shorter, no job title words)
           // or second part looks like a company
@@ -598,6 +724,9 @@ function extractWorkExperience(workExpSections) {
               detectedCompany = secondPart
             }
           }
+          console.log(`  📌 Dash format detected from line: "${line}"`)
+          console.log(`     Parsed parts: ${JSON.stringify(parts)}`)
+          console.log(`     Result: Title="${detectedTitle}", Company="${detectedCompany}", Date="${detectedDate || 'Not in line'}"`)
         }
       }
       
@@ -662,6 +791,9 @@ function extractWorkExperience(workExpSections) {
           currentExp.bullets = currentBullets
           experiences.push(currentExp)
           console.log(`💾 Saved experience: ${currentExp.company} - ${currentExp.title} (${currentBullets.length} bullets)`)
+          if (currentBullets.length === 0) {
+            console.warn(`  ⚠️ Warning: Experience has no bullets`)
+          }
         }
         
         // Start new experience from pipe or dash format
@@ -677,13 +809,18 @@ function extractWorkExperience(workExpSections) {
         console.log(`✅ Detected new experience (${formatType} format): Company="${detectedCompany}", Title="${detectedTitle || 'No title'}", Date="${detectedDate || 'No date'}"`)
         i++
         continue
+      } else if (pipeFormat || dashFormat) {
+        console.log(`  ℹ️ Line ${i} has pipe/dash format but no company detected: "${line.substring(0, 60)}${line.length > 60 ? '...' : ''}"`)
       }
       
-      // Also check if current line is a dash format company-title (even if we're processing bullets)
-      // This helps detect new companies that appear after bullets
+      // IMPROVED: Better detection of dash format companies that appear after bullets
+      // This helps detect new companies that appear after previous experience
       const isDashFormatCompany = dashFormat && detectedCompany && 
-                                   currentExp && 
-                                   detectedCompany !== currentExp.company
+                                   (!currentExp || detectedCompany !== currentExp.company)
+      
+      if (isDashFormatCompany) {
+        console.log(`  🔍 Detected dash-format company: "${detectedCompany}" vs current: "${currentExp?.company || 'none'}"`)
+      }
       
       // Check if this is a new company (standard format or dash format)
       if (isDashFormatCompany || (isLikelyCompany && (looksLikeNewCompany || isNewCompanyAfterBullets)) || (isLikelyCompany && currentExp === null)) {
@@ -757,35 +894,38 @@ function extractWorkExperience(workExpSections) {
         }
         currentBullets = []
         console.log(`📝 Created new experience entry: Company="${company}", Title="${title}", Date="${date}"`)
+      } else if (isStandaloneDateLine && currentExp && !currentExp.date) {
+        // This is a standalone date line right after a company/title
+        // Attach it to the current experience
+        currentExp.date = line
+        console.log(`  📅 Attached standalone date to current experience: "${line}"`)
       } else if (isBullet) {
         // This is a bullet point
-        if (currentExp) {
-          // Remove bullet marker and leading whitespace
-          const bulletText = originalLine
-            .replace(/^\s*[•\-\*▪▫◦‣⁃]\s*/, '') // Remove bullet char with surrounding spaces
-            .replace(/^\s*\d+[\.\)]\s*/, '') // Remove numbered bullet
-            .replace(/^\t+/, '') // Remove leading tabs
-            .trim()
-          
-          if (bulletText && bulletText.length > 0) {
+        // IMPROVED: Enhanced bullet text extraction with more bullet types
+        const bulletText = originalLine
+          .replace(/^\s*[•\-\*▪▫◦‣⁃✓✔►▸⦿]\s*/, '') // Remove bullet char with surrounding spaces
+          .replace(/^\s*\d+[\.\)]\s*/, '') // Remove numbered bullet
+          .replace(/^\t+/, '') // Remove leading tabs
+          .trim()
+        
+        if (bulletText && bulletText.length > 0) {
+          if (currentExp) {
+            // Add to current experience
             currentBullets.push(bulletText)
-          }
-        } else {
-          // Bullet found but no currentExp - might be continuation of previous exp
-          // Try to attach to last experience if it exists
-          if (experiences.length > 0) {
-            const lastExp = experiences[experiences.length - 1]
-            const bulletText = originalLine
-              .replace(/^\s*[•\-\*▪▫◦‣⁃]\s*/, '')
-              .replace(/^\s*\d+[\.\)]\s*/, '')
-              .replace(/^\t+/, '')
-              .trim()
-            
-            if (bulletText && bulletText.length > 0) {
+            console.log(`  ✅ Added bullet to current experience: "${bulletText.substring(0, 50)}${bulletText.length > 50 ? '...' : ''}"`)
+          } else {
+            // IMPROVED: Bullet found but no currentExp
+            // Try to attach to last experience if it exists
+            if (experiences.length > 0) {
+              const lastExp = experiences[experiences.length - 1]
               if (!lastExp.bullets) {
                 lastExp.bullets = []
               }
               lastExp.bullets.push(bulletText)
+              console.log(`  ⚠️ Orphaned bullet attached to previous experience: "${bulletText.substring(0, 50)}${bulletText.length > 50 ? '...' : ''}"`)
+            } else {
+              // No experience to attach to - log as orphaned
+              console.warn(`  ❌ Orphaned bullet with no experience to attach: "${bulletText.substring(0, 50)}${bulletText.length > 50 ? '...' : ''}"`)
             }
           }
         }
@@ -812,12 +952,26 @@ function extractWorkExperience(workExpSections) {
       currentExp.bullets = currentBullets
       experiences.push(currentExp)
       console.log(`💾 Saved final experience: ${currentExp.company} - ${currentExp.title} (${currentBullets.length} bullets)`)
+      if (currentBullets.length === 0) {
+        console.warn(`  ⚠️ Warning: Final experience has no bullets`)
+      }
     }
     
-    console.log(`📊 Work experience extraction complete: ${experiences.length} experience(s) found`)
+    console.log(`\n📊 Work experience extraction complete: ${experiences.length} experience(s) found`)
+    console.log('📋 Summary of extracted experiences:')
     experiences.forEach((exp, idx) => {
-      console.log(`  ${idx + 1}. ${exp.company || 'No company'} - ${exp.title || 'No title'} (${exp.bullets?.length || 0} bullets)`)
+      const bulletCount = exp.bullets?.length || 0
+      const status = bulletCount > 0 ? '✅' : '⚠️'
+      console.log(`  ${status} ${idx + 1}. ${exp.company || 'No company'} - ${exp.title || 'No title'}`)
+      console.log(`      📅 ${exp.date || 'No date'} | 📍 ${exp.location || 'No location'}`)
+      console.log(`      🔹 ${bulletCount} bullet(s)`)
+      if (bulletCount > 0) {
+        exp.bullets.forEach((bullet, bIdx) => {
+          console.log(`         ${bIdx + 1}. ${bullet.substring(0, 60)}${bullet.length > 60 ? '...' : ''}`)
+        })
+      }
     })
+    console.log('')
 
     // Fallback: If no experiences found with new logic, try old logic
     if (experiences.length === 0) {
@@ -1143,14 +1297,15 @@ function isDate(text) {
 
 /**
  * Check if line is a section header
+ * IMPROVED: More comprehensive section header detection
  */
 function isSectionHeader(line) {
   const sectionPatterns = [
-    /^(work\s+experience|experience|employment|professional\s+experience|career\s+history|professional\s+experience)$/i,
-    /^(skills|technical\s+skills|core\s+competencies|competencies|key\s+skills|core\s+skills)$/i,
-    /^(education|academic\s+background|qualifications)$/i,
-    /^(personal\s+statement|summary|professional\s+summary|about|profile|objective)$/i,
-    /^(projects|prototypes|certifications|awards)$/i
+    /^(work\s+experience|experience|employment|professional\s+experience|career\s+history|work\s+history|employment\s+history|relevant\s+experience)$/i,
+    /^(skills|technical\s+skills|core\s+competencies|competencies|key\s+skills|core\s+skills|technical\s+proficiencies|expertise|technical\s+expertise)$/i,
+    /^(education|academic\s+background|qualifications|academic|academic\s+qualifications)$/i,
+    /^(personal\s+statement|summary|professional\s+summary|about\s+me|about|profile|objective|executive\s+summary|career\s+objective|professional\s+profile)$/i,
+    /^(projects|prototypes|certifications|awards|achievements|publications|languages|volunteer|volunteering)$/i
   ]
   return sectionPatterns.some(pattern => pattern.test(line))
 }

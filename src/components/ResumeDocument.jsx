@@ -43,29 +43,23 @@ function createDynamicStyles(stylingSpecs) {
   const transforms = stylingSpecs?.transforms || {}
   const colors = stylingSpecs?.colors || {}
 
-  // Strict fallback to standard margins if not provided, ensuring no hidden padding
-  const marginTop = layout.margins?.top !== undefined ? layout.margins.top : 30
-  const marginBottom = layout.margins?.bottom !== undefined ? layout.margins.bottom : 30
-  const marginLeft = layout.margins?.left !== undefined ? layout.margins.left : 30
-  const marginRight = layout.margins?.right !== undefined ? layout.margins.right : 30
-
   return StyleSheet.create({
     page: {
-      paddingTop: marginTop,
-      paddingBottom: marginBottom,
-      paddingLeft: marginLeft,
-      paddingRight: marginRight,
+      paddingTop: layout.margins?.top || 30, // Adequate top padding for professional spacing
+      paddingBottom: layout.margins?.bottom || 15,
+      paddingLeft: layout.margins?.left || 30,
+      paddingRight: layout.margins?.right || 30,
       fontSize: fonts.body?.size || 11,
       fontFamily: mapFontFamily(fonts.body?.family || fonts.name?.family || 'Helvetica'),
       backgroundColor: colors.background || '#ffffff',
       color: colors.text || '#000000',
     },
     header: {
-      marginTop: 0, // STRICT
-      marginBottom: layout.sectionSpacing || 6, 
-      borderBottom: colors.accent ? `2px solid ${colors.accent}` : '2px solid #667eea',
-      paddingBottom: 8, 
-      alignItems: 'center', 
+      marginTop: 0, // No top margin on header
+      marginBottom: layout.sectionSpacing || 6, // Use adjusted spacing
+      borderBottom: '2px solid #000000', // Black separator (removed purple)
+      paddingBottom: 8, // Reduced for one-page fit
+      alignItems: 'center', // Center content horizontally
     },
     name: {
       fontSize: fonts.name?.size || 24,
@@ -73,8 +67,8 @@ function createDynamicStyles(stylingSpecs) {
       fontStyle: fonts.name?.style === 'italic' ? 'italic' : 'normal',
       fontFamily: mapFontFamily(fonts.name?.family),
       color: colors.text || '#1a1a1a',
-      marginBottom: 8, 
-      letterSpacing: 0.5, 
+      marginBottom: 8, // Use reference margin
+      letterSpacing: 0.5, // Use reference letter spacing
       textTransform: transforms.name === 'uppercase' ? 'uppercase' : 
                      transforms.name === 'lowercase' ? 'lowercase' : 'none',
       textAlign: 'center',
@@ -82,7 +76,7 @@ function createDynamicStyles(stylingSpecs) {
     contactInfo: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      justifyContent: 'center', 
+      justifyContent: 'center', // Center contact items
       gap: 12,
       fontSize: fonts.contact?.size || 10,
       fontWeight: fonts.contact?.weight === 'bold' ? 'bold' : 'normal',
@@ -90,38 +84,42 @@ function createDynamicStyles(stylingSpecs) {
       color: colors.text || '#555',
     },
     contactItem: {
-      marginRight: 15,
+      marginRight: 0,
+    },
+    contactSeparator: {
+      color: colors.text || '#555',
+      fontWeight: 'normal',
     },
     section: {
-      marginBottom: layout.sectionSpacing || 8, 
-      marginTop: 0, // STRICT
+      marginBottom: layout.sectionSpacing || 8, // Minimal spacing (less than 0.25 inch = 18pt)
+      marginTop: 0, // No top margin on sections
     },
     sectionTitle: {
       fontSize: fonts.sectionTitle?.size || 14,
       fontWeight: fonts.sectionTitle?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.sectionTitle?.style === 'italic' ? 'italic' : 'normal',
-      color: colors.accent || '#667eea',
+      color: '#000000', // Black color for section titles
       marginBottom: 2, // Minimal spacing below title
-      marginTop: 0, // STRICT
+      marginTop: 0, // No top margin
       textTransform: transforms.sectionTitle === 'uppercase' ? 'uppercase' :
                      transforms.sectionTitle === 'lowercase' ? 'lowercase' :
                      transforms.sectionTitle === 'capitalize' ? 'capitalize' : 'uppercase',
-      letterSpacing: fonts.sectionTitle?.letterSpacing || 1, 
+      letterSpacing: fonts.sectionTitle?.letterSpacing || 1, // Use reference if available
       borderBottom: '1px solid #e0e0e0',
-      paddingBottom: 2, 
+      paddingBottom: 2, // Minimal padding
     },
     summary: {
       fontSize: fonts.body?.size || 11,
-      lineHeight: fonts.body?.lineHeight || 1.6, 
+      lineHeight: fonts.body?.lineHeight || 1.6, // Use reference line height
       fontWeight: fonts.body?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.body?.style === 'italic' ? 'italic' : 'normal',
       color: colors.text || '#333',
       textAlign: 'justify',
-      marginBottom: 0, // STRICT
-      marginTop: 0, // STRICT
+      marginBottom: 0, // No extra margin on summary text
+      marginTop: 0,
     },
     experienceItem: {
-      marginBottom: layout.paragraphSpacing || 3, 
+      marginBottom: layout.paragraphSpacing || 3, // Use adjusted spacing (tight for one-page)
     },
     experienceHeader: {
       flexDirection: 'row',
@@ -160,9 +158,9 @@ function createDynamicStyles(stylingSpecs) {
       fontSize: fonts.bulletText?.size || fonts.body?.size || 10,
       fontWeight: fonts.bulletText?.weight === 'bold' ? 'bold' : 'normal',
       fontStyle: fonts.bulletText?.style === 'italic' ? 'italic' : 'normal',
-      lineHeight: bullets.lineSpacing || 1.15, 
+      lineHeight: bullets.lineSpacing || 1.15, // Use adjusted line spacing (tight for one-page)
       color: colors.text || '#444',
-      marginBottom: 1, // Minimal bottom margin
+      marginBottom: 1, // Reduced for one-page fit
     },
     bulletMarker: {
       marginRight: 4,
@@ -180,7 +178,7 @@ function createDynamicStyles(stylingSpecs) {
       color: colors.text || '#333',
     },
     educationItem: {
-      marginBottom: layout.paragraphSpacing || 3, 
+      marginBottom: layout.paragraphSpacing || 3, // Use adjusted spacing (tight for one-page)
     },
     degree: {
       fontWeight: 'bold',
@@ -265,14 +263,24 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         <View style={styles.header}>
           <Text style={styles.name}>{contactInfo.name || data.name || 'Your Name'}</Text>
           <View style={styles.contactInfo}>
+            {/* ATS-friendly: Use explicit separator (|) between contact items */}
             {contactInfo.email && (
               <Text style={styles.contactItem}>{String(contactInfo.email)}</Text>
+            )}
+            {contactInfo.email && (contactInfo.phone || contactInfo.location || contactInfo.website) && (
+              <Text style={styles.contactSeparator}> | </Text>
             )}
             {contactInfo.phone && (
               <Text style={styles.contactItem}>{String(contactInfo.phone)}</Text>
             )}
+            {contactInfo.phone && (contactInfo.location || contactInfo.website) && (
+              <Text style={styles.contactSeparator}> | </Text>
+            )}
             {contactInfo.location && (
               <Text style={styles.contactItem}>{String(contactInfo.location)}</Text>
+            )}
+            {contactInfo.location && contactInfo.website && (
+              <Text style={styles.contactSeparator}> | </Text>
             )}
             {contactInfo.website && (
               <Text style={styles.contactItem}>{String(contactInfo.website)}</Text>
@@ -283,7 +291,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Personal Statement */}
         {data.personalStatement && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Professional Summary</Text>
+            <Text style={styles.sectionTitle}>PROFESSIONAL SUMMARY</Text>
             <Text style={styles.summary}>{String(data.personalStatement)}</Text>
           </View>
         )}
@@ -291,7 +299,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Work Experience */}
         {workExperience.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Work Experience</Text>
+            <Text style={styles.sectionTitle}>WORK EXPERIENCE</Text>
             {workExperience.map((item, index) => {
               if (!item) return null
               const bullets = Array.isArray(item.bullets) ? item.bullets : []
@@ -335,7 +343,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Skills */}
         {data.skills && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Skills</Text>
+            <Text style={styles.sectionTitle}>SKILLS</Text>
             <Text style={styles.skills}>{String(data.skills)}</Text>
           </View>
         )}
@@ -343,7 +351,7 @@ const ResumeDocument = ({ data, stylingSpecs }) => {
         {/* Education */}
         {education.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Education</Text>
+            <Text style={styles.sectionTitle}>EDUCATION</Text>
             {education.map((item, index) => {
               if (!item) return null
               
